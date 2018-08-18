@@ -1,13 +1,15 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SpaServices.AngularCli;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-
 namespace WechatBotWeb
 {
+    using Microsoft.AspNetCore.Builder;
+    using Microsoft.AspNetCore.Hosting;
+    using Microsoft.AspNetCore.HttpsPolicy;
+    using Microsoft.AspNetCore.Mvc;
+    using Microsoft.AspNetCore.SpaServices.AngularCli;
+    using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.DependencyInjection;
+    using WechatBotWeb.Common;
+    using WechatBotWeb.Middlewares;
+
     public class Startup
     {
         public Startup(IConfiguration configuration)
@@ -32,13 +34,24 @@ namespace WechatBotWeb
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
+            //AppId:80ecf1c1-a837-48da-a2c7-dfa1c500b019
+            //Key: MlO7a13ea0DGeEXOObBrojChwVqptDir8NwH4dTRMvE =
+
+            GlobalVariables.IsProduction = env.IsProduction();
+
+            app.Map(GlobalVariables.WebApiPath, (ap) =>
+            {
+                ap.UseClientInfoMiddleware();
+                ap.UseJwtAuthenticationMiddleware();
+            });
+
             if (env.IsDevelopment())
             {
-                app.UseDeveloperExceptionPage();
+                //app.UseDeveloperExceptionPage();
             }
             else
             {
-                app.UseExceptionHandler("/Error");
+                //app.UseExceptionHandler("/Error");
                 app.UseHsts();
             }
 

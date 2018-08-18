@@ -10,9 +10,12 @@
 
     <!-- Set this to true if you enable server-side prerendering -->
     <BuildServerSideRenderer>false</BuildServerSideRenderer>
+    <ApplicationInsightsResourceId>/subscriptions/9b6f3020-f1b4-4967-8f7c-a3f9fcc3e08a/resourcegroups/wechatybot-test-rg/providers/microsoft.insights/components/wechatybot-test-appinsights</ApplicationInsightsResourceId>
+    <ApplicationInsightsAnnotationResourceId>/subscriptions/9b6f3020-f1b4-4967-8f7c-a3f9fcc3e08a/resourcegroups/wechatybot-test-rg/providers/microsoft.insights/components/wechatybot-test-appinsights</ApplicationInsightsAnnotationResourceId>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.4.0" />
     <PackageReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="2.1.0" />
   </ItemGroup>
@@ -21,6 +24,15 @@
     <!-- Don't publish the SPA source files, but do show them in the project files list -->
     <Content Remove="$(SpaRoot)**" />
     <None Include="$(SpaRoot)**" Exclude="$(SpaRoot)node_modules\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WechatBotWeb.Common\WechatBotWeb.Common.csproj" />
+    <ProjectReference Include="..\WechatBotWeb.IData\WechatBotWeb.IData.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <WCFMetadata Include="Connected Services" />
   </ItemGroup>
 
   <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And !Exists('$(SpaRoot)node_modules') ">
