@@ -25,21 +25,33 @@ namespace WechatBotWeb.Middlewares
             {
                 await next(context);
             }
-            catch(HttpStatusException ex)
+            catch (Exception e)
             {
-                insight.Exception(ex, "ExceptionHandler");
-                // output client friendly body
-            }
-            catch (Exception ex)
-            {
-                insight.Exception(ex, "ExceptionHandler");
+                var shouldLogException = true;
+                var ex = e;
+                while (ex is ApplicationInsightsAlreadyInspectedException)
+                {
+                    shouldLogException = false;
+                    ex = e.InnerException;
+                }
+
+                if (shouldLogException)
+                {
+                    insight.Exception(ex, "ExceptionHandler");
+                }
 
                 if (context.Response.HasStarted)
                 {
                     throw;
                 }
 
-                // output general error 500
+                if (ex is HttpStatusException)
+                {
+                }
+                else
+                {
+
+                }
             }
         }
     }
