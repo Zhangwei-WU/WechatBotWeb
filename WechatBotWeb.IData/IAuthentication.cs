@@ -45,19 +45,20 @@ namespace WechatBotWeb.IData
         string RefreshToken { get; }
     }
     
-    public interface IAppAuthenticationToken : IStatus
+    public interface IAppAuthenticationToken
     {
         string AccessToken { get; }
     }
 
-    public interface IUserAuthenticationToken : IStatus
+    public interface IUserAuthenticationToken
     {
+        bool Validated { get; }
         string AccessToken { get; }
         string RefreshToken { get; }
         long ExpireIn { get; }
     }
     
-    public interface IUserAuthenticationCode : IStatus
+    public interface IUserAuthenticationCode
     {
         string Code { get; }
         string TargetUser { get; }

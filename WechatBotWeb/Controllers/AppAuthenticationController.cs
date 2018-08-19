@@ -19,8 +19,7 @@ namespace WechatBotWeb.Controllers
         [HttpGet("")]
         public async Task<IActionResult> GenerateAuthenticationCodeAsync()
         {
-            var token = await appAuthService.CreateAppTokenAsync(CallContext.ClientContext);
-            return StatusCode((int)token.Status, token);
+            return Ok(await appAuthService.CreateAppTokenAsync(CallContext.ClientContext));
         }
     }
 }

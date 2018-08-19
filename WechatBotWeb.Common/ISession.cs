@@ -2,12 +2,12 @@
 {
     public interface IDevice
     {
-        string ClientDeviceId { get; }
+        string ClientDeviceId { get; set; }
     }
 
     public interface ISession : IDevice
     {
-        string ClientSessionId { get; }
+        string ClientSessionId { get; set; }
     }
 
 

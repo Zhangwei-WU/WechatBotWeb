@@ -41,8 +41,10 @@ namespace WechatBotWeb
 
             app.Map(GlobalVariables.WebApiPath, (ap) =>
             {
-                ap.UseClientInfoMiddleware();
-                ap.UseJwtAuthenticationMiddleware();
+                ap
+                .UseClientInfoMiddleware()
+                .UseExceptionHandlerMiddleware()
+                .UseJwtAuthenticationMiddleware();
             });
 
             if (env.IsDevelopment())
