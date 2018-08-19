@@ -158,7 +158,7 @@
                 {
                     e.Exception = ex.GetType().FullName;
                     Exception(ex, source, properties);
-                    throw;
+                    throw new ApplicationInsightsAlreadyInspectedException(ex);
                 }
             }
         }
@@ -174,7 +174,7 @@
                 {
                     e.Exception = ex.GetType().FullName;
                     Exception(ex, source, properties);
-                    throw;
+                    throw new ApplicationInsightsAlreadyInspectedException(ex);
                 }
             }
         }
@@ -190,7 +190,7 @@
                 {
                     e.Exception = ex.GetType().FullName;
                     Exception(ex, source, properties);
-                    throw;
+                    throw new ApplicationInsightsAlreadyInspectedException(ex);
                 }
             }
         }
@@ -206,7 +206,7 @@
                 {
                     e.Exception = ex.GetType().FullName;
                     Exception(ex, source, properties);
-                    throw;
+                    throw new ApplicationInsightsAlreadyInspectedException(ex);
                 }
             }
         }
@@ -232,7 +232,7 @@
                 {
                     e.Exception = ex.GetType().FullName;
                     Exception(ex, source, properties);
-                    throw;
+                    throw new ApplicationInsightsAlreadyInspectedException(ex);
                 }
             }
         }
@@ -249,7 +249,7 @@
                 {
                     e.Exception = ex.GetType().FullName;
                     Exception(ex, source, properties);
-                    throw;
+                    throw new ApplicationInsightsAlreadyInspectedException(ex);
                 }
             }
         }
@@ -266,7 +266,7 @@
                 {
                     e.Exception = ex.GetType().FullName;
                     Exception(ex, source, properties);
-                    throw;
+                    throw new ApplicationInsightsAlreadyInspectedException(ex);
                 }
             }
         }
@@ -283,7 +283,7 @@
                 {
                     e.Exception = ex.GetType().FullName;
                     Exception(ex, source, properties);
-                    throw;
+                    throw new ApplicationInsightsAlreadyInspectedException(ex);
                 }
             }
         }

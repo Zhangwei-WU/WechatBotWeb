@@ -118,4 +118,13 @@
 
         void Flush();
     }
+
+    public class ApplicationInsightsAlreadyInspectedException : Exception
+    {
+        public ApplicationInsightsAlreadyInspectedException(Exception innerException)
+            :base(string.Empty, innerException)
+        {
+
+        }
+    }
 }
