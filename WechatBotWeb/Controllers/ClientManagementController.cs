@@ -2,7 +2,9 @@
 {
     using Microsoft.AspNetCore.Mvc;
     using System.Threading.Tasks;
+    using WechatBotWeb.Common;
     using WechatBotWeb.IData;
+    using WechatBotWeb.Models;
 
     [ApiController]
     [Route("api/client")]
@@ -16,17 +18,20 @@
         }
 
         [HttpPut("device")]
-        public async Task<IActionResult> PutDeviceInfo(IDeviceInfo device)
+        public async Task<IActionResult> PutDeviceInfo([FromBody]DeviceInfo device)
         {
+            device.ClientDeviceId = CallContext.ClientContext.ClientDeviceId;
             await clientMgnService.SaveDeviceInfo(device);
-            return Ok();
+            return NoContent();
         }
 
         [HttpPut("session")]
-        public async Task<IActionResult> PutSessionInfo(ISessionInfo session)
+        public async Task<IActionResult> PutSessionInfo([FromBody]SessionInfo session)
         {
+            session.ClientDeviceId = CallContext.ClientContext.ClientDeviceId;
+            session.ClientSessionId = CallContext.ClientContext.ClientSessionId;
             await clientMgnService.UpdateSessionInfo(session);
-            return Ok();
+            return NoContent();
         }
     }
 }

@@ -3,9 +3,10 @@
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using WechatBotWeb.Common;
     using WechatBotWeb.IData;
     using WechatBotWeb.Models;
-    
+
     [ApiController]
     [Route("api/userauth")]
     public class UserAuthenticationController : Controller
@@ -20,40 +21,44 @@
         [Authorize()] // appidentity
         public async Task<IActionResult> CreateAcknowledgeCodeAsync([FromBody]CreateUserAuthenticationCodeRequest request)
         {
-            var result = await userAuthService.CreateCodeAsync(User.Identity as ISessionIdentity, request);
-            return StatusCode((int)result.Status, result);
+            return Ok(await userAuthService.CreateCodeAsync(User.Identity as ISessionIdentity, request));
         }
 
         [HttpPost("create/directlogin")]
         [Authorize()] // botidentity
         public async Task<IActionResult> CreateDirectLoginCodeAsync([FromBody]CreateUserAuthenticationCodeRequest request)
         {
-            var result = await userAuthService.CreateCodeAsync(User.Identity as ISessionIdentity, request);
-            return StatusCode((int)result.Status, result);
+            return Ok(await userAuthService.CreateCodeAsync(User.Identity as ISessionIdentity, request));
         }
 
-        [HttpPost("acknowledge")]
-        [Authorize()] // appidentity
-        public async Task<IActionResult> AcknowledgeCodeAsync([FromBody]AcknowledgeUserAuthenticationCodeRequest request)
+        [HttpPost("ack/acknowledge")]
+        [Authorize()] // botidentity
+        public async Task<IActionResult> AcknowledgeAcknowledgeCodeAsync([FromBody]AcknowledgeUserAuthenticationCodeRequest request)
         {
-            var result = await userAuthService.AcknowledgeCodeAsync(User.Identity as ISessionIdentity, request);
-            return StatusCode((int)result.Status, result);
+            if (request.CodeType != UserAuthenticationCodeType.AcknowledgeCode) throw new HttpStatusException("NotMatch:AcknowledgeUserAuthenticationCodeRequest.CodeType") { Status = Common.StatusCode.BadRequest };
+            return Ok(await userAuthService.AcknowledgeCodeAsync(User.Identity as ISessionIdentity, request));
+        }
+
+        [HttpPost("ack/directlogin")]
+        [Authorize()] // appidentity
+        public async Task<IActionResult> AcknowledgeDirectLoginCodeAsync([FromBody]AcknowledgeUserAuthenticationCodeRequest request)
+        {
+            if (request.CodeType != UserAuthenticationCodeType.DirectLoginCode) throw new HttpStatusException("NotMatch:AcknowledgeUserAuthenticationCodeRequest.CodeType") { Status = Common.StatusCode.BadRequest };
+            return Ok(await userAuthService.AcknowledgeCodeAsync(User.Identity as ISessionIdentity, request));
         }
 
         [HttpPost("get")]
         [Authorize()] // appidentity
         public async Task<IActionResult> TryGetTokenByCodeAsync([FromBody]GetUserAuthenticationCodeRequest request)
         {
-            var result = await userAuthService.TryGetTokenByCodeAsync(User.Identity as ISessionIdentity, request);
-            return StatusCode((int)result.Status, result);
+            return Ok(await userAuthService.TryGetTokenByCodeAsync(User.Identity as ISessionIdentity, request));
         }
 
         [HttpPost("refresh")]
         [Authorize()] // appidentity
         public async Task<IActionResult> RefreshTokenAsync([FromBody]RefreshUserAuthenticationTokenRequest request)
         {
-            var result = await userAuthService.RefreshTokenAsync(User.Identity as ISessionIdentity, request);
-            return StatusCode((int)result.Status, result);
+            return Ok(await userAuthService.RefreshTokenAsync(User.Identity as ISessionIdentity, request));
         }
     }
 }

@@ -59,11 +59,10 @@
                     SameSite = SameSiteMode.Strict,
                     HttpOnly = true
                 });
-
-
+            
             using (var watch = insight.Watch("RequestProcessTime"))
             {
-                await next.Invoke(context);
+                await next(context);
                 watch.Properties.Add("StatusCode", context.Response.StatusCode.ToString());
             }
         }

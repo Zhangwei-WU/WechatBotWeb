@@ -5,6 +5,7 @@ namespace WechatBotWeb.IData
 
     public interface IDeviceInfo : IDevice
     {
+        string DeviceFP { get; }
         string UserAgent { get; }
         string Browser { get; }
         string BrowserVersion { get; }

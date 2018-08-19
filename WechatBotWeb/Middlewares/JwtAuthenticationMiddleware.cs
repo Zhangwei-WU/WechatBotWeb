@@ -13,7 +13,7 @@
 
         private readonly RequestDelegate next;
         private IAuthenticationService authService;
-        private IApplicationInsights insights;
+        private IApplicationInsights insight;
 
         public JwtAuthenticationMiddleware(RequestDelegate next, IAuthenticationService service, IApplicationInsights insights)
         {
@@ -27,25 +27,29 @@
             if (!string.IsNullOrEmpty(authorization))
             {
                 var schemeIndex = authorization.IndexOf(' ');
-                if (schemeIndex != -1)
+                if (schemeIndex == -1)
+                {
+                    insight.Error("JwtAuthenticationMiddleware", "BadFormat Authorization: {0}", authorization);
+                }
+                else
                 {
                     var scheme = authorization.Substring(0, schemeIndex);
-                    if (scheme == "Bearer")
+                    var token = authorization.Substring(schemeIndex + 1);
+                    var identity = await authService.ValidateTokenAsync(CallContext.ClientContext, scheme, token);
+                    if (identity == null)
                     {
-                        var token = authorization.Substring(schemeIndex + 1);
-                        var identity = await authService.ValidateTokenAsync(CallContext.ClientContext, scheme, token);
-                        if (identity != null)
-                        {
-                            var principal = new ClaimsPrincipal(identity);
-                            context.User = principal;
-                        }
+                        insight.Error("JwtAuthenticationMiddleware", "Error Authorization: {0}", authorization);
                     }
+                    else
+                    {
+                        var principal = new ClaimsPrincipal(identity);
+                        context.User = principal;
+                    }
+                    
                 }
-
-
             }
 
-            await next.Invoke(context);
+            await next(context);
         }
     }
 

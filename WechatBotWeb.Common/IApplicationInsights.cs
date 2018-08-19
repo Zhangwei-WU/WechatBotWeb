@@ -114,6 +114,8 @@
         void Event(string source, params string[] properties);
         #endregion
 
+        void Exception(Exception exception, string source, params string[] properties);
+
         void Flush();
     }
 }
