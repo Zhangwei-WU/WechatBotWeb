@@ -156,9 +156,7 @@
                 }
                 catch (Exception ex)
                 {
-                    e.Exception = ex.GetType().FullName;
-                    Exception(ex, source, properties);
-                    throw new ApplicationInsightsAlreadyInspectedException(ex);
+                    throw HandleExceptions(e, ex, source, properties);
                 }
             }
         }
@@ -172,9 +170,7 @@
                 }
                 catch (Exception ex)
                 {
-                    e.Exception = ex.GetType().FullName;
-                    Exception(ex, source, properties);
-                    throw new ApplicationInsightsAlreadyInspectedException(ex);
+                    throw HandleExceptions(e, ex, source, properties);
                 }
             }
         }
@@ -188,9 +184,7 @@
                 }
                 catch (Exception ex)
                 {
-                    e.Exception = ex.GetType().FullName;
-                    Exception(ex, source, properties);
-                    throw new ApplicationInsightsAlreadyInspectedException(ex);
+                    throw HandleExceptions(e, ex, source, properties);
                 }
             }
         }
@@ -204,9 +198,7 @@
                 }
                 catch (Exception ex)
                 {
-                    e.Exception = ex.GetType().FullName;
-                    Exception(ex, source, properties);
-                    throw new ApplicationInsightsAlreadyInspectedException(ex);
+                    throw HandleExceptions(e, ex, source, properties);
                 }
             }
         }
@@ -230,9 +222,7 @@
                 }
                 catch (Exception ex)
                 {
-                    e.Exception = ex.GetType().FullName;
-                    Exception(ex, source, properties);
-                    throw new ApplicationInsightsAlreadyInspectedException(ex);
+                    throw HandleExceptions(e, ex, source, properties);
                 }
             }
         }
@@ -247,9 +237,7 @@
                 }
                 catch (Exception ex)
                 {
-                    e.Exception = ex.GetType().FullName;
-                    Exception(ex, source, properties);
-                    throw new ApplicationInsightsAlreadyInspectedException(ex);
+                    throw HandleExceptions(e, ex, source, properties);
                 }
             }
         }
@@ -264,9 +252,7 @@
                 }
                 catch (Exception ex)
                 {
-                    e.Exception = ex.GetType().FullName;
-                    Exception(ex, source, properties);
-                    throw new ApplicationInsightsAlreadyInspectedException(ex);
+                    throw HandleExceptions(e, ex, source, properties);
                 }
             }
         }
@@ -281,11 +267,24 @@
                 }
                 catch (Exception ex)
                 {
-                    e.Exception = ex.GetType().FullName;
-                    Exception(ex, source, properties);
-                    throw new ApplicationInsightsAlreadyInspectedException(ex);
+                    throw HandleExceptions(e, ex, source, properties);
                 }
             }
+        }
+
+        private ApplicationInsightsAlreadyInspectedException HandleExceptions(IApplicationInsightEvent e, Exception ex, string source, string[] properties)
+        {
+            var shouldLogException = true;
+            var exx = ex;
+            while (exx is ApplicationInsightsAlreadyInspectedException)
+            {
+                exx = ex.InnerException;
+                shouldLogException = false;
+            }
+
+            e.Exception = exx.GetType().FullName;
+            if (shouldLogException) Exception(exx, source, properties);
+            return new ApplicationInsightsAlreadyInspectedException(exx);
         }
 
         #endregion
