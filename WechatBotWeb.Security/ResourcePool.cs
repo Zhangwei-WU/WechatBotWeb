@@ -72,14 +72,21 @@ namespace WechatBotWeb.Security
         /// </summary>
         /// <param name="initializer">instance initializer</param>
         public ResourcePool(Action<T> initializer)
+            :this(initializer, null)
+        {
+        }
+
+        public ResourcePool(Action<T> initializer, Action<T> cleanup)
         {
             this.initializer = initializer;
+            this.cleanup = cleanup;
         }
 
         /// <summary>
         /// initializer to initialize T instance
         /// </summary>
         private Action<T> initializer;
+        private Action<T> cleanup;
 
         /// <summary>
         /// internal queue for object storing
@@ -99,21 +106,18 @@ namespace WechatBotWeb.Security
         {
             T data = default(T);
 
-            lock (this.locker)
+            lock (locker)
             {
-                if (this.internalQueue.Count != 0)
+                if (internalQueue.Count != 0)
                 {
-                    data = this.internalQueue.Dequeue();
+                    data = internalQueue.Dequeue();
                 }
             }
 
             if (data == null)
             {
                 data = new T();
-                if (this.initializer != null)
-                {
-                    this.initializer(data);
-                }
+                initializer?.Invoke(data);
             }
 
             return new Resource<T>(data, this);
@@ -131,6 +135,7 @@ namespace WechatBotWeb.Security
                 {
                     if (obj != null)
                     {
+                        cleanup?.Invoke(obj);
                         this.internalQueue.Enqueue(obj);
                     }
                 }

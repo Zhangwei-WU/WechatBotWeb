@@ -24,6 +24,7 @@ namespace WechatBotWeb.Common
         #region event names
         public const string EventClientNewDeviceIdSource = "Client.NewDeviceId";
         public const string EventClientNewSessionIdSource = "Client.NewSessionId";
+        public const string EventInvalidIdentitySource = "Client.InvalidIdentity";
         public const string EventServerWebApiStatisticsSource = "Server.WebApi.Statistics";
         public const string EventCallAzureStorageTableSource = "Dependency.Azure.StorageTable";
         public const string EventCallAzureKeyVaultSource = "Dependency.Azure.KeyVault";

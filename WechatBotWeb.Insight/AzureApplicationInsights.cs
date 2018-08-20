@@ -7,27 +7,27 @@
     using Microsoft.ApplicationInsights;
     using WechatBotWeb.Common;
 
-    public class AzureApplicationInsightEvent : IApplicationInsightEvent
+    public class AzureApplicationInsightTraceEvent : IApplicationInsightEvent
     {
         private AzureApplicationInsights insight;
         private Stopwatch watch;
         private bool disposed = false;
 
-        internal AzureApplicationInsightEvent(string source, AzureApplicationInsights insight, bool startWatch)
+        internal AzureApplicationInsightTraceEvent(string source, AzureApplicationInsights insight, bool startWatch)
         {
-            this.Source = source;
+            this.EventSource = source;
             this.insight = insight;
             Init(startWatch);
         }
 
-        public AzureApplicationInsightEvent(string source)
+        public AzureApplicationInsightTraceEvent(string source)
         {
-            this.Source = source;
+            this.EventSource = source;
             Init(false);
         }
 
-        public string Source { get; set; }
-        public string Status { get; set; }
+        public string EventSource { get; set; }
+        public string EventStatus { get; set; }
         public string Exception { get; set; }
         public IDictionary<string, string> Properties { get; private set; }
         public IDictionary<string, double> Metrics { get; private set; }
@@ -120,19 +120,19 @@
         #region exception
         public void Exception(Exception exception, string source, params string[] properties)
         {
-            telemetry.TrackException(exception, GetProperties(source, properties));
+            telemetry.TrackException(exception, GetProperties(source, properties), null);
         }
         #endregion
 
         #region event
         public void Event(IApplicationInsightEvent eventData)
         {
-            FillSystemProperties(eventData.Properties, eventData.Source);
+            FillSystemProperties(eventData.Properties, eventData.EventSource);
 
-            if (!string.IsNullOrEmpty(eventData.Status)) eventData.Properties.Add(ApplicationInsightEventNames.EventStatusPropertyName, eventData.Status);
+            if (!string.IsNullOrEmpty(eventData.EventStatus)) eventData.Properties.Add(ApplicationInsightEventNames.EventStatusPropertyName, eventData.EventStatus);
             if (!string.IsNullOrEmpty(eventData.Exception)) eventData.Properties.Add(ApplicationInsightEventNames.EventExceptionPropertyName, eventData.Exception);
 
-            telemetry.TrackEvent(eventData.Source, eventData.Properties, eventData.Metrics);
+            telemetry.TrackEvent(eventData.EventSource, eventData.Properties, eventData.Metrics);
         }
 
         public void Event(string source, params string[] properties)
@@ -205,7 +205,7 @@
 
         public IApplicationInsightEvent Watch(string source, params string[] properties)
         {
-            var e = new AzureApplicationInsightEvent(source, this, true);
+            var e = new AzureApplicationInsightTraceEvent(source, this, true);
             if (properties != null && properties.Length != 0) for (var i = 0; i < properties.Length / 2; i++) e.Properties.Add(properties[i * 2], properties[i * 2 + 1]);
             return e;
         }
