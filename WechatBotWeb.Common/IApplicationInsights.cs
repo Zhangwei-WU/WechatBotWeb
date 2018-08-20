@@ -14,11 +14,11 @@
         Fatal = 4,
         DISABLED = 999
     }
-
+    
     public interface IApplicationInsightEvent : IDisposable
     {
-        string Source { get; }
-        string Status { get; set; }
+        string EventSource { get; }
+        string EventStatus { get; set; }
         string Exception { get; set; }
         IDictionary<string, string> Properties { get; }
         IDictionary<string, double> Metrics { get; }

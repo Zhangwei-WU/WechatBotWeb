@@ -35,8 +35,13 @@
                 {
                     var scheme = authorization.Substring(0, schemeIndex);
                     var token = authorization.Substring(schemeIndex + 1);
-                    var identity = await authService.ValidateTokenAsync(CallContext.ClientContext, scheme, token);
-                    if (identity == null)
+
+                    var identity = await insight.WatchAsync(
+                        async () => await authService.ValidateTokenAsync(CallContext.ClientContext, scheme, token), 
+                        (r, e) => e.EventStatus = (r != null && r.IsAuthenticated).ToString(), 
+                        "JwtAuthenticationMiddleware");
+
+                    if (identity == null || !identity.IsAuthenticated)
                     {
                         insight.Error("JwtAuthenticationMiddleware", "Error Authorization: {0}", authorization);
                     }
@@ -45,7 +50,6 @@
                         var principal = new ClaimsPrincipal(identity);
                         context.User = principal;
                     }
-                    
                 }
             }
 

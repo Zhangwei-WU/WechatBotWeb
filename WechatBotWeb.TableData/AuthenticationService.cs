@@ -80,13 +80,13 @@
             }
             else
             {
-                throw new ArgumentOutOfRangeException("request.CodeType");
+                throw new HttpStatusException($"Unknown:CreateUserAuthenticationCodeRequest.CodeType({request.CodeType})") { Status = StatusCode.BadRequest };
             }
         }
 
         private async Task<IUserAuthenticationCode> CreateAcknowledgeCodeAsync(ISessionIdentity identity, ICreateUserAuthenticationCodeRequest request)
         {
-            if (identity.IdentityType != IdentityType.App) throw new HttpStatusException("NotApp:Identity") { Status = StatusCode.Unauthorized };
+            if (identity.IdentityType != IdentityType.App) throw new HttpStatusException($"NotApp:Identity({identity.IdentityType})") { Status = StatusCode.Unauthorized };
 
             var table = tableClient.GetTableReference(AcknowledgeCodeTableName);
 
@@ -105,7 +105,7 @@
 
                 var result = await insight.WatchAsync(
                     async () => await table.RetrieveAsync<AcknowledgeCodeStatusEntity>(code, 0L.ToString("X16")),
-                    (r, e) =>e.Status = r.HttpStatusCode.ToString(),
+                    (r, e) =>e.EventStatus = r.HttpStatusCode.ToString(),
                     ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "RetrieveAsync", "TableName", table.Name);
 
                 if (result.HttpStatusCode >= 400 && result.HttpStatusCode != 404) throw new HttpStatusException("EntityErrorRetrieve:AcknowledgeCodeStatus", result.HttpStatusCode);
@@ -127,7 +127,7 @@
 
                     var status = await insight.WatchAsync(
                         async () => await table.InsertOrMergeAsync(statusEntity),
-                        (r, e) => e.Status = r.ToString(),
+                        (r, e) => e.EventStatus = r.ToString(),
                         ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "InsertOrMergeAsync", "TableName", table.Name);
 
                     if (status >= 400) throw new HttpStatusException("EntityErrorUpdate:AcknowledgeCodeStatus", status);
@@ -152,7 +152,7 @@
 
                 var insertStatus = await insight.WatchAsync(
                     async () => await table.InsertAsync(codeEntity),
-                    (r, e) => e.Status = r.ToString(),
+                    (r, e) => e.EventStatus = r.ToString(),
                     ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "InsertAsync", "TableName", table.Name);
 
                 if (insertStatus >= 400) throw new HttpStatusException("EntityErrorInsert:AcknowledgeCode", insertStatus);
@@ -170,7 +170,7 @@
 
         private async Task<IUserAuthenticationCode> CreateDirectLoginCodeAsync(ISessionIdentity identity, ICreateUserAuthenticationCodeRequest request)
         {
-            if (identity.IdentityType != IdentityType.Bot) throw new HttpStatusException("NotBot:Identity") { Status = StatusCode.Unauthorized };
+            if (identity.IdentityType != IdentityType.Bot) throw new HttpStatusException($"NotBot:Identity{identity.IdentityType}") { Status = StatusCode.Unauthorized };
             if (string.IsNullOrEmpty(request.TargetUser)) throw new HttpStatusException("Empty:CreateUserAuthenticationCodeRequest.TargetUser") { Status = StatusCode.BadRequest };
 
             var table = tableClient.GetTableReference(DirectLoginCodeTableName);
@@ -198,7 +198,7 @@
 
                 var status = await insight.WatchAsync(
                     async () => await table.InsertAsync(codeEntity),
-                    (r, e) => e.Status = r.ToString(),
+                    (r, e) => e.EventStatus = r.ToString(),
                     ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "InsertAsync", "TableName", table.Name);
                 if (status == 409)
                 {
@@ -236,20 +236,20 @@
             }
             else
             {
-                throw new NotImplementedException();
+                throw new HttpStatusException($"Unknown:AcknowledgeUserAuthenticationCodeRequest.CodeType({request.CodeType})") { Status = StatusCode.BadRequest };
             }
         }
 
         private async Task<IUserAuthenticationCode> AcknowledgeAcknowledgeCodeAsync(ISessionIdentity identity, IAcknowledgeUserAuthenticationCodeRequest request)
         {
-            if (identity.IdentityType != IdentityType.Bot) throw new HttpStatusException("NotBot:Identity") { Status = StatusCode.Unauthorized };
+            if (identity.IdentityType != IdentityType.Bot) throw new HttpStatusException($"NotBot:Identity{identity.IdentityType}") { Status = StatusCode.Unauthorized };
             if (string.IsNullOrEmpty(request.Code)) throw new HttpStatusException("Empty:AcknowledgeUserAuthenticationCodeRequest.Code") { Status = StatusCode.BadRequest };
 
             var table = tableClient.GetTableReference(AcknowledgeCodeTableName);
 
             var statusResult = await insight.WatchAsync(
                 async () => await table.RetrieveAsync<AcknowledgeCodeStatusEntity>(request.Code, 0L.ToString("X16")),
-                (r, e) => e.Status = r.HttpStatusCode.ToString(),
+                (r, e) => e.EventStatus = r.HttpStatusCode.ToString(),
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "RetrieveAsync", "TableName", table.Name);
 
             if (statusResult.HttpStatusCode == 404) throw new HttpStatusException("EntityNotFound:AcknowledgeCodeStatus", statusResult.HttpStatusCode) { Status = StatusCode.NotFound };
@@ -260,21 +260,21 @@
 
             var statusEntity = statusResult.Entity;
 
-            if (statusEntity.AvailableAfter < nowTicks) throw new HttpStatusException("EntityExpired:AcknowledgeCodeStatus") { Status = StatusCode.NotFound };
+            if (statusEntity.AvailableAfter < nowTicks) throw new HttpStatusException("Expired:AcknowledgeCodeStatus") { Status = StatusCode.NotFound };
 
             var rowKey = statusEntity.CurrentRowKey;
 
             var codeResult = await insight.WatchAsync(
                 async () => await table.RetrieveAsync<AcknowledgeCodeEntity>(request.Code, rowKey),
-                (r, e) => e.Status = r.HttpStatusCode.ToString(),
+                (r, e) => e.EventStatus = r.HttpStatusCode.ToString(),
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "RetrieveAsync", "TableName", table.Name);
 
             if (codeResult.HttpStatusCode >= 400) throw new HttpStatusException("EntityErrorRetrieve:AcknowledgeCode", codeResult.HttpStatusCode);
 
             var codeEntity = codeResult.Entity;
-            if (codeEntity.ExpireIn < nowTicks) throw new HttpStatusException("EntityExpired:AcknowledgeCode") { Status = StatusCode.NotFound };
+            if (codeEntity.ExpireIn < nowTicks) throw new HttpStatusException("Expired:AcknowledgeCode") { Status = StatusCode.NotFound };
             if (codeEntity.Status != (int)StatusCode.Pending) throw new HttpStatusException("EntityErrorStatus:AcknowledgeCode", codeEntity.Status) { Status = StatusCode.NotFound };
-            if (!string.IsNullOrEmpty(codeEntity.TargetUser) && string.Compare(codeEntity.TargetUser, request.AcknowledgeUser, true) != 0) throw new HttpStatusException("NotMatch:AcknowledgeUserAuthenticationCodeRequest.AcknowledgeUser") { Status = StatusCode.NotFound };
+            if (!string.IsNullOrEmpty(codeEntity.TargetUser) && string.Compare(codeEntity.TargetUser, request.AcknowledgeUser, true) != 0) throw new HttpStatusException($"NotMatch:AcknowledgeUserAuthenticationCodeRequest.AcknowledgeUser({codeEntity.TargetUser}, {request.AcknowledgeUser})") { Status = StatusCode.NotFound };
 
             codeEntity.AckBy = request.AcknowledgeUser;
             codeEntity.Ackime = nowTicks;
@@ -283,7 +283,7 @@
 
             var result = await insight.WatchAsync(
                 async () => await table.MergeAsync(codeEntity),
-                (r, e) => e.Status = r.ToString(),
+                (r, e) => e.EventStatus = r.ToString(),
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "MergeAsync", "TableName", table.Name);
 
             if (result >= 400) throw new HttpStatusException("EntityErrorUpdate:AcknowledgeCode", result);
@@ -298,8 +298,8 @@
 
         private async Task<IUserAuthenticationCode> AcknowledgeDirectLoginCodeAsync(ISessionIdentity identity, IAcknowledgeUserAuthenticationCodeRequest request)
         {
-            if (identity.IdentityType != IdentityType.App) throw new HttpStatusException("NotApp:Identity") { Status = StatusCode.Unauthorized };
-            if (string.IsNullOrEmpty(request.Code) || request.Code.Length != 40) throw new HttpStatusException("BadRequest:AcknowledgeUserAuthenticationCodeRequest.Code") { Status = StatusCode.BadRequest };
+            if (identity.IdentityType != IdentityType.App) throw new HttpStatusException($"NotApp:Identity({identity.IdentityType})") { Status = StatusCode.Unauthorized };
+            if (string.IsNullOrEmpty(request.Code) || request.Code.Length != 40) throw new HttpStatusException($"Invalid:AcknowledgeUserAuthenticationCodeRequest.Code({request.Code})") { Status = StatusCode.BadRequest };
 
             var table = tableClient.GetTableReference(DirectLoginCodeTableName);
 
@@ -308,7 +308,7 @@
 
             var result = await insight.WatchAsync(
                 async () => await table.RetrieveAsync<DirectLoginCodeEntity>(request.Code.Substring(0, 8), request.Code),
-                (r, e) => e.Status = r.HttpStatusCode.ToString(),
+                (r, e) => e.EventStatus = r.HttpStatusCode.ToString(),
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "RetrieveAsync", "TableName", table.Name);
 
             if (result.HttpStatusCode == 404) throw new HttpStatusException("EntityNotFound:DirectLoginCode", result.HttpStatusCode) { Status = StatusCode.NotFound };
@@ -316,8 +316,8 @@
 
             var codeEntity = result.Entity;
 
-            if (codeEntity.ExpireIn < nowTicks) throw new HttpStatusException("EntityExpired:DirectLoginCode") { Status = StatusCode.NotFound };
-            if (codeEntity.Status != (int)StatusCode.Pending) throw new HttpStatusException("EntityErrorStatus:DirectLoginCode", codeEntity.Status) { Status = StatusCode.NotFound };
+            if (codeEntity.ExpireIn < nowTicks) throw new HttpStatusException("Expired:DirectLoginCode") { Status = StatusCode.NotFound };
+            if (codeEntity.Status != (int)StatusCode.Pending) throw new HttpStatusException($"EntityErrorStatus:DirectLoginCode(Status={codeEntity.Status})", codeEntity.Status) { Status = StatusCode.NotFound };
 
             codeEntity.AckDeviceId = identity.ClientDeviceId;
             codeEntity.AckSessionId = identity.ClientSessionId;
@@ -326,7 +326,7 @@
 
             var mergeResult = await insight.WatchAsync(
                 async () => await table.MergeAsync(codeEntity),
-                (r, e) => e.Status = r.ToString(),
+                (r, e) => e.EventStatus = r.ToString(),
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "MergeAsync", "TableName", table.Name);
 
             if (mergeResult >= 400) throw new HttpStatusException("EntityErrorUpdate:DirectLoginCode", mergeResult);
@@ -345,7 +345,7 @@
         public async Task<IUserAuthenticationToken> TryGetTokenByCodeAsync(ISessionIdentity identity, IGetUserAuthenticationCodeRequest request)
         {
             if (identity == null || !identity.IsAuthenticated) throw new HttpStatusException("Unauthorized:Identity") { Status = StatusCode.Unauthorized };
-            if (identity.IdentityType != IdentityType.App) throw new HttpStatusException("NotApp:Identity") { Status = StatusCode.BadRequest };
+            if (identity.IdentityType != IdentityType.App) throw new HttpStatusException($"NotApp:Identity({identity.IdentityType})") { Status = StatusCode.BadRequest };
 
             if (request.CodeType == UserAuthenticationCodeType.AcknowledgeCode)
             {
@@ -357,7 +357,7 @@
             }
             else
             {
-                throw new NotImplementedException();
+                throw new HttpStatusException($"GetUserAuthenticationCodeRequest.CodeType({request.CodeType})") { Status = StatusCode.BadRequest };
             }
         }
 
@@ -367,7 +367,7 @@
 
             var statusResult = await insight.WatchAsync(
                 async () => await table.RetrieveAsync<AcknowledgeCodeStatusEntity>(request.Code, 0L.ToString("X16")),
-                (r, e) => e.Status = r.HttpStatusCode.ToString(),
+                (r, e) => e.EventStatus = r.HttpStatusCode.ToString(),
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "RetrieveAsync", "TableName", table.Name);
 
             if (statusResult.HttpStatusCode == 404) throw new HttpStatusException("EntityNotFound:AcknowledgeCodeStatus", statusResult.HttpStatusCode) { Status = StatusCode.NotFound };
@@ -378,28 +378,32 @@
             var now = DateTime.UtcNow;
             var nowTicks = now.Ticks;
 
-            if (statusEntity.AvailableAfter < nowTicks) throw new HttpStatusException("EntityExpired:AcknowledgeCodeStatus") { Status = StatusCode.NotFound };
+            if (statusEntity.AvailableAfter < nowTicks) throw new HttpStatusException("Expired:AcknowledgeCodeStatus") { Status = StatusCode.NotFound };
 
             var codeResult = await insight.WatchAsync(
                 async () => await table.RetrieveAsync<AcknowledgeCodeEntity>(request.Code, statusEntity.CurrentRowKey),
-                (r, e) => e.Status = r.HttpStatusCode.ToString(),
+                (r, e) => e.EventStatus = r.HttpStatusCode.ToString(),
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "RetrieveAsync", "TableName", table.Name);
 
             if (codeResult.HttpStatusCode >= 400) throw new HttpStatusException("EntityErrorRetrieve:AcknowledgeCode", codeResult.HttpStatusCode);
 
             var codeEntity = codeResult.Entity;
 
-            if (codeEntity.ReqDeviceId != identity.ClientDeviceId || codeEntity.ReqSessionId != identity.ClientSessionId) throw new HttpStatusException("NotMatch:Session") { Status = StatusCode.NotFound };
-            if(codeEntity.ExpireIn < nowTicks) throw new HttpStatusException("EntityExpired:AcknowledgeCode") { Status = StatusCode.NotFound };
+            if (codeEntity.ReqDeviceId != identity.ClientDeviceId || codeEntity.ReqSessionId != identity.ClientSessionId)
+                throw new HttpStatusException(
+                    $"NotMatch:Session(OriginalRequestDeviceId={codeEntity.ReqDeviceId}, IdentityDeviceId={identity.ClientDeviceId}, OriginalRequestSessionId={codeEntity.ReqSessionId}, IdentitySessionId={identity.ClientSessionId})")
+                    { Status = StatusCode.NotFound };
+
+            if(codeEntity.ExpireIn < nowTicks) throw new HttpStatusException("Expired:AcknowledgeCode") { Status = StatusCode.NotFound };
 
             if (codeEntity.Status == (int)StatusCode.Pending) return new UserAuthenticationToken { Validated = false };
-            if (codeEntity.Status != (int)StatusCode.Confirmed) throw new HttpStatusException("EntityErrorStatus:AcknowledgeCode", codeEntity.Status) { Status = StatusCode.NotFound };
+            if (codeEntity.Status != (int)StatusCode.Confirmed) throw new HttpStatusException($"EntityErrorStatus:AcknowledgeCode(Status={codeEntity.Status})", codeEntity.Status) { Status = StatusCode.NotFound };
 
             codeEntity.Status = (int)StatusCode.Expired;
 
             var mergeResult = await insight.WatchAsync(
                 async () => await table.MergeAsync(codeEntity),
-                (r, e) => e.Status = r.ToString(),
+                (r, e) => e.EventStatus = r.ToString(),
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "MergeAsync", "TableName", table.Name);
 
             if (mergeResult >= 400) throw new HttpStatusException("EntityErrorUpdate:AcknowledgeCode", mergeResult);
@@ -409,7 +413,7 @@
 
         private async Task<IUserAuthenticationToken> TryGetTokenByDirectLoginCodeAsync(ISessionIdentity identity, IGetUserAuthenticationCodeRequest request)
         {
-            if (string.IsNullOrEmpty(request.Code) || request.Code.Length != 40) throw new HttpStatusException("BadRequest:GetUserAuthenticationCodeRequest.Code") { Status = StatusCode.BadRequest };
+            if (string.IsNullOrEmpty(request.Code) || request.Code.Length != 40) throw new HttpStatusException($"BadRequest:GetUserAuthenticationCodeRequest.Code({request.Code})") { Status = StatusCode.BadRequest };
 
             var table = tableClient.GetTableReference(DirectLoginCodeTableName);
 
@@ -418,7 +422,7 @@
 
             var codeResult = await insight.WatchAsync(
                 async () => await table.RetrieveAsync<DirectLoginCodeEntity>(request.Code.Substring(0, 8), request.Code),
-                (r, e) => e.Status = r.HttpStatusCode.ToString(),
+                (r, e) => e.EventStatus = r.HttpStatusCode.ToString(),
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "RetrieveAsync", "TableName", table.Name);
 
             if (codeResult.HttpStatusCode == 404) throw new HttpStatusException("EntityNotFound:DirectLoginCode", codeResult.HttpStatusCode) { Status = StatusCode.NotFound };
@@ -426,13 +430,13 @@
 
             var codeEntity = codeResult.Entity;
 
-            if (codeEntity.ExpireIn < nowTicks) throw new HttpStatusException("EntityExpired:DirectLoginCode") { Status = StatusCode.NotFound };
-            if (codeEntity.Status != (int)StatusCode.Confirmed) throw new HttpStatusException("EntityErrorStatus:DirectLoginCode", codeEntity.Status) { Status = StatusCode.NotFound };
+            if (codeEntity.ExpireIn < nowTicks) throw new HttpStatusException("Expired:DirectLoginCode") { Status = StatusCode.NotFound };
+            if (codeEntity.Status != (int)StatusCode.Confirmed) throw new HttpStatusException($"EntityErrorStatus:DirectLoginCode(Status={codeEntity.Status})", codeEntity.Status) { Status = StatusCode.NotFound };
 
             codeEntity.Status = (int)StatusCode.Expired;
             var mergeResult = await insight.WatchAsync(
                 async () => await table.MergeAsync(codeEntity),
-                (r, e) => e.Status = r.ToString(),
+                (r, e) => e.EventStatus = r.ToString(),
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "MergeAsync", "TableName", table.Name);
 
             if (mergeResult >= 400) throw new HttpStatusException("EntityErrorUpdate:DirectLoginCode", mergeResult);
@@ -445,10 +449,10 @@
         public async Task<IUserAuthenticationToken> RefreshTokenAsync(ISessionIdentity identity, IRefreshUserAuthenticationTokenRequest request)
         {
             if (identity == null || !identity.IsAuthenticated) throw new HttpStatusException("Unauthorized:Identity") { Status = StatusCode.Unauthorized };
-            if (identity.IdentityType != IdentityType.App) throw new HttpStatusException("NotApp:Identity") { Status = StatusCode.Unauthorized };
+            if (identity.IdentityType != IdentityType.App) throw new HttpStatusException($"NotApp:Identity({identity.IdentityType})") { Status = StatusCode.Unauthorized };
 
             var token = request.RefreshToken;
-            if (string.IsNullOrEmpty(token) || token.Length != 32) throw new HttpStatusException("BadRequest:RefreshUserAuthenticationTokenRequest.RefreshToken") { Status = StatusCode.BadRequest };
+            if (string.IsNullOrEmpty(token) || token.Length != 32) throw new HttpStatusException($"BadRequest:RefreshUserAuthenticationTokenRequest.RefreshToken({token})") { Status = StatusCode.BadRequest };
 
             var partitionKey = token.Substring(0, 8);
 
@@ -459,7 +463,7 @@
 
             var tokenResult = await insight.WatchAsync(
                 async () => await table.RetrieveAsync<RefreshTokenEntity>(partitionKey, token),
-                (r, e) => e.Status = r.HttpStatusCode.ToString(),
+                (r, e) => e.EventStatus = r.HttpStatusCode.ToString(),
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "RetrieveAsync", "TableName", table.Name);
 
             if (tokenResult.HttpStatusCode == 404) throw new HttpStatusException("EntityNotFound:RefreshToken", tokenResult.HttpStatusCode) { Status = StatusCode.NotFound };
@@ -467,13 +471,13 @@
 
             var tokenEntity = tokenResult.Entity;
 
-            if (tokenEntity.ClaimTime != 0L) throw new HttpStatusException("EntityErrorStatus:RefreshToken") { Status = StatusCode.NotFound };
-            if (tokenEntity.ExpireTime < nowTicks) throw new HttpStatusException("EntityExpired:RefreshToken") { Status = StatusCode.NotFound };
+            if (tokenEntity.ClaimTime != 0L) throw new HttpStatusException($"EntityErrorStatus:RefreshToken(ClaimTime={tokenEntity.ClaimTime})") { Status = StatusCode.NotFound };
+            if (tokenEntity.ExpireTime < nowTicks) throw new HttpStatusException("Expired:RefreshToken") { Status = StatusCode.NotFound };
 
             tokenEntity.ClaimTime = nowTicks;
             var mergeResult = await insight.WatchAsync(
                 async () => await table.MergeAsync(tokenEntity),
-                (r, e) => e.Status = r.ToString(),
+                (r, e) => e.EventStatus = r.ToString(),
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "MergeAsync", "TableName", table.Name);
 
             if (mergeResult >= 400) throw new HttpStatusException("EntityErrorUpdate:RefreshToken", mergeResult);
@@ -483,13 +487,83 @@
 
         public async Task<ISessionIdentity> ValidateTokenAsync(ISession session, string scheme, string token)
         {
-            var anonymous = AnonymousIdentity.Anonymous(session.ClientDeviceId, session.ClientSessionId);
-            if (string.IsNullOrEmpty(token)) return anonymous;
+            if (string.IsNullOrEmpty(token)) return null;
 
+            switch (scheme)
+            {
+                case "Bearer":
+                    return ValidateTokenBearer(session, token);
+
+                default:
+                    throw new HttpStatusException($"Invalid:Scheme{scheme}") { Status = StatusCode.Unauthorized };
+            }
+        }
+
+        private ISessionIdentity ValidateTokenBearer(ISession session, string token)
+        {
             var parts = token.Split('.');
-            if (parts.Length != 3) return anonymous;
+            if (parts.Length != 3) throw new HttpStatusException($"Invalid:Token(Token={token})") { Status = StatusCode.Unauthorized };
 
-            throw new NotImplementedException();
+            var identityType = IdentityType.Unknown;
+            switch (parts[0])
+            {
+                case "App":
+                    identityType = IdentityType.App;
+                    break;
+                case "Usr":
+                    identityType = IdentityType.User;
+                    break;
+                case "Bot":
+                    identityType = IdentityType.Bot;
+                    break;
+                default:
+                    throw new HttpStatusException($"Invalid:Token.IdentityType(Token={token})") { Status = StatusCode.Unauthorized };
+            }
+
+            var encryptedToken = Convert.FromBase64String(parts[1]);
+            var decryptedToken = default(byte[]);
+            try
+            {
+                decryptedToken = Aes.Decrypt(encryptedToken, encryptionKey);
+            }
+            catch (Exception e)
+            {
+                throw new HttpStatusException($"UnableDecrypt:Token(Token={token})", e) { Status = StatusCode.Unauthorized };
+            }
+            
+            var hash = Sha256.Hash(decryptedToken);
+            var sign = Convert.FromBase64String(parts[2]);
+
+            if (!Rsa.VerifySha256Hash(hash, sign, jwk.N, jwk.E)) throw new HttpStatusException($"ValidateFail:Signature(Token={token})") { Status = StatusCode.Unauthorized };
+
+            var tokenString = Encoding.UTF8.GetString(decryptedToken);
+
+            ISessionIdentity identity = default(AnonymousIdentity);
+            switch (identityType)
+            {
+                case IdentityType.App:
+                    identity = Newtonsoft.Json.JsonConvert.DeserializeObject<AppIdentity>(tokenString);
+                    break;
+                case IdentityType.User:
+                    identity = Newtonsoft.Json.JsonConvert.DeserializeObject<UserIdentity>(tokenString);
+                    break;
+                case IdentityType.Bot:
+                    //identity = Newtonsoft.Json.JsonConvert.DeserializeObject<BotI>
+                    break;
+                default:
+                    throw new HttpStatusException($"Invalid:Token.IdentityType(Token={token})") { Status = StatusCode.Unauthorized };
+            }
+
+            //if (identity == null) throw new HttpStatusException("Null:Identity") { Status = StatusCode.Unauthorized };
+
+            if (identity.ClientDeviceId != session.ClientDeviceId || identity.ClientSessionId != session.ClientSessionId)
+                throw new HttpStatusException(
+                    $"NotMatch:Session(IdentityDeviceId={identity.ClientDeviceId}, CurrentDeviceId={session.ClientDeviceId}, IdentitySessionId={identity.ClientSessionId}, CurrentSessionId={session.ClientSessionId})")
+                    { Status = StatusCode.Unauthorized };
+
+            if (identity.ExpireIn < DateTime.UtcNow.Ticks) throw new HttpStatusException("Expired:Identity") { Status = StatusCode.Unauthorized };
+
+            return identity;
         }
 
         private char[] codeCandidates = "0123456789abcdefghijklmnopqrstuvwxyz".ToCharArray();
@@ -544,7 +618,7 @@
                         TargetUser = user.Name,
                         ClaimTime = 0L
                     }),
-                (r, e) => e.Status = r.ToString(),
+                (r, e) => e.EventStatus = r.ToString(),
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "InsertAsync", "TableName", table.Name);
 
             if (insertResult >= 400) throw new HttpStatusException("EntityErrorInsert:RefreshToken", insertResult);
@@ -576,7 +650,7 @@
             var tokenBytes = Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(identity));
 
             var encryptedToken = Aes.Encrypt(tokenBytes, encryptionKey);
-            var hash = SHA256Hashing.Hash(tokenBytes);
+            var hash = Sha256.Hash(tokenBytes);
 
             var tokenSignature = await insight.WatchAsync(
                 async () => (await keyVaultClient.SignAsync(signKeyIdentifier, JsonWebKeySignatureAlgorithm.RS256, hash)).Result,

@@ -61,10 +61,10 @@
 
             var status = await insight.WatchAsync(
                 async () => await table.InsertAsync(entity),
-                (r, e) => e.Status = r.ToString(),
+                (r, e) => e.EventStatus = r.ToString(),
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "InsertAsync", "TableName", table.Name);
 
-            if (status >= 400) insight.Warn("ClientManagementService", "Error inserting device info");
+            if (status >= 400) throw new HttpStatusException("EntityErrorInsert:DeviceInfo", status);
         }
 
         public async Task UpdateSessionInfo(ISessionInfo session)
@@ -87,10 +87,10 @@
 
             var status = await insight.WatchAsync(
                 async () => await table.InsertAsync(entity),
-                (r, e) => e.Status = r.ToString(),
+                (r, e) => e.EventStatus = r.ToString(),
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "InsertAsync", "TableName", table.Name);
 
-            if (status >= 400) insight.Warn("ClientManagementService", "Error inserting session info");
+            if (status >= 400) throw new HttpStatusException("EntityErrorInsert:SessionInfo", status);
         }
     }
 }

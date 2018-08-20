@@ -3,7 +3,7 @@ namespace WechatBotWeb.Security
 {
     using System.Security.Cryptography;
 
-    public static class SHA256Hashing
+    public static class Sha256
     {
         public static byte[] Hash(byte[] data)
         {

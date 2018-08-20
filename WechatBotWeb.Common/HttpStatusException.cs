@@ -1,15 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace WechatBotWeb.Common
 {
     public class HttpStatusException : Exception, IStatus
     {
-        public HttpStatusException()
-        {
-        }
-
         public HttpStatusException(string message)
             : base(message)
         {
@@ -27,5 +22,6 @@ namespace WechatBotWeb.Common
         }
 
         public StatusCode Status { get; set; } = StatusCode.InternalServerError;
+
     }
 }
