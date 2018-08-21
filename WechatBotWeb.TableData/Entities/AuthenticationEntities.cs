@@ -45,6 +45,7 @@
         public long ExpireTime { get; set; }
         public long ClaimTime { get; set; }
         public string DeviceId { get; set; }
+        public string SessionId { get; set; }
         public string TargetUser { get; set; }
     }
 }

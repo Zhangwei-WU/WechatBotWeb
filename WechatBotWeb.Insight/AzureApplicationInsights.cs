@@ -5,80 +5,104 @@
     using System.Diagnostics;
     using System.Threading.Tasks;
     using Microsoft.ApplicationInsights;
+    using Microsoft.ApplicationInsights.DataContracts;
     using WechatBotWeb.Common;
 
-    public class AzureApplicationInsightEvent : IApplicationInsightEvent
-    {
-        private AzureApplicationInsights insight;
-        private Stopwatch watch;
-        private bool disposed = false;
+    //public class AzureApplicationInsightEvent : IApplicationInsightEvent
+    //{
+    //    private AzureApplicationInsights insight;
+    //    private Stopwatch watch;
+    //    private bool disposed = false;
 
-        internal AzureApplicationInsightEvent(string source, AzureApplicationInsights insight, bool startWatch)
-        {
-            this.EventSource = source;
-            this.insight = insight;
-            Init(startWatch);
-        }
+    //    internal AzureApplicationInsightEvent(string source, AzureApplicationInsights insight, bool startWatch)
+    //    {
+    //        this.EventSource = source;
+    //        this.insight = insight;
+    //        Init(startWatch);
+    //    }
 
-        public AzureApplicationInsightEvent(string source)
-        {
-            this.EventSource = source;
-            Init(false);
-        }
+    //    public AzureApplicationInsightEvent(string source)
+    //    {
+    //        this.EventSource = source;
+    //        Init(false);
+    //    }
 
-        public string EventSource { get; set; }
-        public string EventStatus { get; set; }
-        public string Exception { get; set; }
-        public IDictionary<string, string> Properties { get; private set; }
-        public IDictionary<string, double> Metrics { get; private set; }
+    //    public string EventSource { get; set; }
+    //    public string EventStatus { get; set; }
+    //    public string Exception { get; set; }
+    //    public IDictionary<string, string> Properties { get; private set; }
+    //    public IDictionary<string, double> Metrics { get; private set; }
 
-        private void Init(bool startWatch)
-        {
-            this.Properties = new Dictionary<string, string>();
-            this.Metrics = new Dictionary<string, double>();
+    //    private void Init(bool startWatch)
+    //    {
+    //        this.Properties = new Dictionary<string, string>();
+    //        this.Metrics = new Dictionary<string, double>();
 
-            if(startWatch)
-            {
-                watch = new Stopwatch();
-                watch.Start();
-            }
-        }
+    //        if(startWatch)
+    //        {
+    //            watch = new Stopwatch();
+    //            watch.Start();
+    //        }
+    //    }
 
-        private void EventMe()
-        {
-            if (watch != null && watch.IsRunning)
-            {
-                watch.Stop();
-                Metrics.Add(ApplicationInsightEventNames.WatchElapsedMetricName, watch.ElapsedMilliseconds);
-            }
+    //    private void EventMe()
+    //    {
+    //        if (watch != null && watch.IsRunning)
+    //        {
+    //            watch.Stop();
+    //            Metrics.Add(ApplicationInsightEventNames.WatchElapsedMetricName, watch.ElapsedMilliseconds);
+    //        }
 
-            if (insight != null) insight.Event(this);
-        }
+    //        if (insight != null) insight.Event(this);
+    //    }
 
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
+    //    public void Dispose()
+    //    {
+    //        Dispose(true);
+    //        GC.SuppressFinalize(this);
+    //    }
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposed) return;
-            if (disposing)
-            {
-                EventMe();
-            }
+    //    protected virtual void Dispose(bool disposing)
+    //    {
+    //        if (disposed) return;
+    //        if (disposing)
+    //        {
+    //            EventMe();
+    //        }
 
-            disposed = true;
-        }
-    }
+    //        disposed = true;
+    //    }
+    //}
 
     public class AzureApplicationInsights : IApplicationInsights
     {
         private TelemetryClient telemetry = new TelemetryClient();
+        private string correlationId = string.Empty;
 
         public AzureApplicationInsights()
         {
+        }
+
+        public void AddContext(string name, string value)
+        {
+            telemetry.Context.Properties.Add(name, value);
+        }
+
+        public string CorrelationId
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(correlationId)) return correlationId;
+
+                lock(telemetry)
+                {
+                    var trace = new TraceTelemetry("Trace to retrieve Operation Id", SeverityLevel.Verbose);
+                    telemetry.TrackTrace(trace);
+                    correlationId = trace.Context.Operation.Id;
+                }
+
+                return correlationId;
+            }
         }
 
         public LogLevel MinLogLevel { get; set; }
@@ -118,22 +142,15 @@
         #endregion
 
         #region exception
+
         public void Exception(Exception exception, string source, params string[] properties)
         {
             telemetry.TrackException(exception, GetProperties(source, properties), null);
         }
+
         #endregion
 
         #region event
-        public void Event(IApplicationInsightEvent eventData)
-        {
-            FillSystemProperties(eventData.Properties, eventData.EventSource);
-
-            if (!string.IsNullOrEmpty(eventData.EventStatus)) eventData.Properties.Add(ApplicationInsightEventNames.EventStatusPropertyName, eventData.EventStatus);
-            if (!string.IsNullOrEmpty(eventData.Exception)) eventData.Properties.Add(ApplicationInsightEventNames.EventExceptionPropertyName, eventData.Exception);
-
-            telemetry.TrackEvent(eventData.EventSource, eventData.Properties, eventData.Metrics);
-        }
 
         public void Event(string source, params string[] properties)
         {
@@ -142,152 +159,153 @@
 
         #endregion
 
-        #region watch
+        //#region watch
 
-        public T Watch<T>(Func<T> func, Action<T, IApplicationInsightEvent> checkResult, string source, params string[] properties)
-        {
-            using (var e = Watch(source, properties))
-            {
-                try
-                {
-                    var result = func();
-                    checkResult?.Invoke(result, e);
-                    return result;
-                }
-                catch (Exception ex)
-                {
-                    throw HandleExceptions(e, ex, source, properties);
-                }
-            }
-        }
-        public T Watch<T>(Func<IApplicationInsightEvent, T> func, string source, params string[] properties)
-        {
-            using (var e = Watch(source, properties))
-            {
-                try
-                {
-                    return func(e);
-                }
-                catch (Exception ex)
-                {
-                    throw HandleExceptions(e, ex, source, properties);
-                }
-            }
-        }
-        public void Watch(Action action, string source, params string[] properties)
-        {
-            using (var e = Watch(source, properties))
-            {
-                try
-                {
-                    action();
-                }
-                catch (Exception ex)
-                {
-                    throw HandleExceptions(e, ex, source, properties);
-                }
-            }
-        }
-        public void Watch(Action<IApplicationInsightEvent> action, string source, params string[] properties)
-        {
-            using (var e = Watch(source, properties))
-            {
-                try
-                {
-                    action(e);
-                }
-                catch (Exception ex)
-                {
-                    throw HandleExceptions(e, ex, source, properties);
-                }
-            }
-        }
+        //public T Watch<T>(Func<T> func, Action<T, IApplicationInsightEvent> checkResult, string source, params string[] properties)
+        //{
+        //    using (var e = Watch(source, properties))
+        //    {
+        //        try
+        //        {
+        //            var result = func();
+        //            checkResult?.Invoke(result, e);
+        //            return result;
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            throw HandleExceptions(ex, source, properties);
+        //        }
+        //    }
+        //}
+        //public T Watch<T>(Func<IApplicationInsightEvent, T> func, string source, params string[] properties)
+        //{
+        //    using (var e = Watch(source, properties))
+        //    {
+        //        try
+        //        {
+        //            return func(e);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            throw HandleExceptions(e, ex, source, properties);
+        //        }
+        //    }
+        //}
+        //public void Watch(Action action, string source, params string[] properties)
+        //{
+        //    using (var e = Watch(source, properties))
+        //    {
+        //        try
+        //        {
+        //            action();
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            throw HandleExceptions(e, ex, source, properties);
+        //        }
+        //    }
+        //}
+        //public void Watch(Action<IApplicationInsightEvent> action, string source, params string[] properties)
+        //{
+        //    using (var e = Watch(source, properties))
+        //    {
+        //        try
+        //        {
+        //            action(e);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            throw HandleExceptions(e, ex, source, properties);
+        //        }
+        //    }
+        //}
 
-        public IApplicationInsightEvent Watch(string source, params string[] properties)
-        {
-            var e = new AzureApplicationInsightEvent(source, this, true);
-            if (properties != null && properties.Length != 0) for (var i = 0; i < properties.Length / 2; i++) e.Properties.Add(properties[i * 2], properties[i * 2 + 1]);
-            return e;
-        }
+        ////public IApplicationInsightEvent Watch(string source, params string[] properties)
+        ////{
+        ////    var e = new AzureApplicationInsightEvent(source, this, true);
+        ////    if (properties != null && properties.Length != 0) for (var i = 0; i < properties.Length / 2; i++) e.Properties.Add(properties[i * 2], properties[i * 2 + 1]);
+        ////    return e;
+        ////}
 
-        public async Task<T> WatchAsync<T>(Func<Task<T>> func, Action<T, IApplicationInsightEvent> checkResult, string source, params string[] properties)
-        {
-            using (var e = Watch(source, properties))
-            {
-                try
-                {
-                    var result = await func();
-                    checkResult?.Invoke(result, e);
-                    return result;
-                }
-                catch (Exception ex)
-                {
-                    throw HandleExceptions(e, ex, source, properties);
-                }
-            }
-        }
+        //public async Task<T> WatchAsync<T>(Func<Task<T>> func, Action<T> result, string dependencyTypeName, params string[] properties)
+        //{
+        //    using (var op = telemetry.StartOperation<DependencyTelemetry>(""))
+        //    {
+        //        op.Telemetry.DependencyTypeName = dependencyTypeName;
+        //        op.Telemetry.
+        //        try
+        //        {
+        //            var r = await func();
+        //            op.Telemetry.Success = true;
+        //            op.Telemetry.
+        //            return r;
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            op.Telemetry.Success = false;
+        //            throw HandleExceptions(ex, dependencyTypeName, properties);
+        //        }
+        //        finally
+        //        {
+        //            telemetry.StopOperation(op);
+        //        }
+        //    }
+        //}
 
-        public async Task<T> WatchAsync<T>(Func<IApplicationInsightEvent, Task<T>> func, string source, params string[] properties)
-        {
-            using (var e = Watch(source, properties))
-            {
-                try
-                {
-                    return await func(e);
-                }
-                catch (Exception ex)
-                {
-                    throw HandleExceptions(e, ex, source, properties);
-                }
-            }
-        }
+        //public async Task<T> WatchAsync<T>(Func<IApplicationInsightEvent, Task<T>> func, string source, params string[] properties)
+        //{
+        //    using (var e = Watch(source, properties))
+        //    {
+        //        try
+        //        {
+        //            return await func(e);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            throw HandleExceptions(e, ex, source, properties);
+        //        }
+        //    }
+        //}
 
-        public async Task WatchAsync(Func<Task> func, string source, params string[] properties)
-        {
-            using (var e = Watch(source, properties))
-            {
-                try
-                {
-                    await func();
-                }
-                catch (Exception ex)
-                {
-                    throw HandleExceptions(e, ex, source, properties);
-                }
-            }
-        }
+        //public async Task WatchAsync(Func<Task> func, string source, params string[] properties)
+        //{
+        //    using (var e = Watch(source, properties))
+        //    {
+        //        try
+        //        {
+        //            await func();
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            throw HandleExceptions(e, ex, source, properties);
+        //        }
+        //    }
+        //}
 
-        public async Task WatchAsync(Func<IApplicationInsightEvent, Task> func, string source, params string[] properties)
-        {
-            using (var e = Watch(source, properties))
-            {
-                try
-                {
-                    await func(e);
-                }
-                catch (Exception ex)
-                {
-                    throw HandleExceptions(e, ex, source, properties);
-                }
-            }
-        }
+        //public async Task WatchAsync(Func<IApplicationInsightEvent, Task> func, string source, params string[] properties)
+        //{
+        //    using (var e = Watch(source, properties))
+        //    {
+        //        try
+        //        {
+        //            await func(e);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            throw HandleExceptions(ex, source, properties);
+        //        }
+        //    }
+        //}
 
-        private ApplicationInsightsAlreadyInspectedException HandleExceptions(IApplicationInsightEvent e, Exception ex, string source, string[] properties)
-        {
-            var shouldLogException = true;
-            var exx = ex;
-            while (exx is ApplicationInsightsAlreadyInspectedException)
-            {
-                exx = ex.InnerException;
-                shouldLogException = false;
-            }
+        //private Exception HandleExceptions(Exception ex, string source, string[] properties)
+        //{
+        //    if (ex is ApplicationInsightsAlreadyInspectedException) return ex;
 
-            e.Exception = exx.GetType().FullName;
-            if (shouldLogException) Exception(exx, source, properties);
-            return new ApplicationInsightsAlreadyInspectedException(exx);
-        }
+        //    Exception(ex, source, properties);
+        //    return new ApplicationInsightsAlreadyInspectedException(ex);
+        //}
 
-        #endregion
+        //#endregion
 
         public void Flush()
         {
@@ -296,38 +314,30 @@
 
         private Dictionary<string, string> GetProperties(string source, string[] properties)
         {
-            if ((properties.Length & 0x1) == 0x1) throw new ArgumentOutOfRangeException("properties");
+            if ((properties?.Length & 0x1) == 0x1) throw new ArgumentOutOfRangeException("properties");
             var cnt = properties == null ? 0 : properties.Length / 2;
-            var props = new Dictionary<string, string>(cnt + 4);
-            if (cnt != 0) for (var i = 0; i < cnt; i++) props.Add(properties[i * 2], properties[i * 2 + 1]);
 
-            FillSystemProperties(props, source);
+            var props = new Dictionary<string, string>(cnt + 1);
+            if (cnt != 0) for (var i = 0; i < cnt; i++) props.Add(properties[i * 2], properties[i * 2 + 1]);
+            props.Add(ApplicationInsightConstants.SourcePropertyName, source);
 
             return props;
         }
-
-        private void FillSystemProperties(IDictionary<string, string> props, string source)
-        {
-            props.Add(ApplicationInsightEventNames.EventDeviceIdPropertyName, CallContext.ClientContext.ClientDeviceId);
-            props.Add(ApplicationInsightEventNames.EventSessionIdPropertyName, CallContext.ClientContext.ClientSessionId);
-            props.Add(ApplicationInsightEventNames.EventCorrelationIdPropertyName, CallContext.ClientContext.CorrelationId);
-            props.Add(ApplicationInsightEventNames.EventSourcePropertyName, source);
-        }
-
-        private Microsoft.ApplicationInsights.DataContracts.SeverityLevel GetSeverity(LogLevel level)
+        
+        private SeverityLevel GetSeverity(LogLevel level)
         {
             switch (level)
             {
                 case LogLevel.Verb:
-                    return Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose;
+                    return SeverityLevel.Verbose;
                 case LogLevel.Info:
-                    return Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Information;
+                    return SeverityLevel.Information;
                 case LogLevel.Warn:
-                    return Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning;
+                    return SeverityLevel.Warning;
                 case LogLevel.Error:
-                    return Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error;
+                    return SeverityLevel.Error;
                 case LogLevel.Fatal:
-                    return Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Critical;
+                    return SeverityLevel.Critical;
                 default:
                     throw new ArgumentOutOfRangeException("level");
             }

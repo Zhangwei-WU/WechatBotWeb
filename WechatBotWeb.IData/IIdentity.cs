@@ -16,6 +16,22 @@ namespace WechatBotWeb.IData
         Bot
     }
 
+    public enum UserVerificationLevel
+    {
+        /// <summary>
+        /// user is not verified
+        /// </summary>
+        NotVerified = 0,
+        /// <summary>
+        /// user is signed in by refresh token and in another session
+        /// </summary>
+        AutoSignIn = 1,
+        /// <summary>
+        /// user is signed in by strong sign in
+        /// </summary>
+        StrongSignIn = 2
+    }
+
     public interface ISessionIdentity : ISession, IIdentity
     {
         IdentityType IdentityType { get; }
@@ -28,6 +44,7 @@ namespace WechatBotWeb.IData
 
     public interface IUserIdentity : ISessionIdentity
     {
+        UserVerificationLevel VerificationLevel {get;}
     }
 
     public interface IBotIdentity : ISessionIdentity

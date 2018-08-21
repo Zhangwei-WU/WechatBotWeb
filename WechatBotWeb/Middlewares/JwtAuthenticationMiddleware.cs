@@ -12,13 +12,13 @@
     {
 
         private readonly RequestDelegate next;
-        private IAuthenticationService authService;
-        private IApplicationInsights insight;
+        private readonly IAuthenticationService service;
+        private readonly IApplicationInsights insight;
 
         public JwtAuthenticationMiddleware(RequestDelegate next, IAuthenticationService service, IApplicationInsights insight)
         {
             this.next = next;
-            this.authService = service;
+            this.service = service;
             this.insight = insight;
         }
 
@@ -37,10 +37,7 @@
                     var scheme = authorization.Substring(0, schemeIndex);
                     var token = authorization.Substring(schemeIndex + 1);
 
-                    var identity = await insight.WatchAsync(
-                        async () => await authService.ValidateTokenAsync(CallContext.ClientContext, scheme, token), 
-                        (r, e) => e.EventStatus = (r != null && r.IsAuthenticated).ToString(), 
-                        "JwtAuthenticationMiddleware");
+                    var identity = await service.ValidateTokenAsync(CallContext.ClientContext, scheme, token);
 
                     if (identity == null || !identity.IsAuthenticated)
                     {

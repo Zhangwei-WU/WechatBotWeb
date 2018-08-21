@@ -18,6 +18,8 @@ namespace WechatBotWeb.TableData
         public bool IsAuthenticated { get; set; }
 
         public string Name { get; set; }
+
+        public UserVerificationLevel VerificationLevel { get; set; }
     }
 
     public class AnonymousIdentity : IAnonymousIdentity
