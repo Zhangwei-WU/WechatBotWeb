@@ -77,7 +77,6 @@
     public class AzureApplicationInsights : IApplicationInsights
     {
         private TelemetryClient telemetry = new TelemetryClient();
-        private string correlationId = string.Empty;
 
         public AzureApplicationInsights()
         {
@@ -92,16 +91,9 @@
         {
             get
             {
-                if (!string.IsNullOrEmpty(correlationId)) return correlationId;
-
-                lock(telemetry)
-                {
-                    var trace = new TraceTelemetry("Trace to retrieve Operation Id", SeverityLevel.Verbose);
-                    telemetry.TrackTrace(trace);
-                    correlationId = trace.Context.Operation.Id;
-                }
-
-                return correlationId;
+                var trace = new TraceTelemetry("Trace to retrieve Operation Id", SeverityLevel.Verbose);
+                telemetry.TrackTrace(trace);
+                return trace.Context.Operation.Id;
             }
         }
 
