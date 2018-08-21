@@ -18,6 +18,7 @@
     <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.4.0" />
     <PackageReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="2.1.0" />
+    <PackageReference Include="Microsoft.Azure.Services.AppAuthentication" Version="1.0.3" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,6 +30,8 @@
   <ItemGroup>
     <ProjectReference Include="..\WechatBotWeb.Common\WechatBotWeb.Common.csproj" />
     <ProjectReference Include="..\WechatBotWeb.IData\WechatBotWeb.IData.csproj" />
+    <ProjectReference Include="..\WechatBotWeb.Insight\WechatBotWeb.Insight.csproj" />
+    <ProjectReference Include="..\WechatBotWeb.TableData\WechatBotWeb.TableData.csproj" />
   </ItemGroup>
 
   <ItemGroup>

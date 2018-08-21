@@ -1,8 +1,11 @@
 ﻿namespace WechatBotWeb.TableData
 {
-    using Microsoft.WindowsAzure.Storage.Table;
     using System;
+    using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.Azure.KeyVault;
+    using Microsoft.WindowsAzure.Storage;
+    using Microsoft.WindowsAzure.Storage.Table;
     using WechatBotWeb.Common;
     using WechatBotWeb.IData;
     using WechatBotWeb.TableData.Entities;
@@ -12,12 +15,19 @@
         public const string DeviceInfoTableName = "Devices";
         public const string SessionInfoTableName = "Sessions";
 
+        private static SemaphoreSlim semaphoreForInitialize = new SemaphoreSlim(1, 1);
+
         private IApplicationInsights insight;
         private CloudTableClient tableClient;
-        public ClientManagementService(IApplicationInsights insight, CloudTableClient tableClient)
+        private KeyVaultClient keyVaultClient;
+        private string tableIdentifier;
+        private bool initialized = false;
+
+        public ClientManagementService(IApplicationInsights insight, KeyVaultClient keyVault, string tableIdentifier)
         {
             this.insight = insight;
-            this.tableClient = tableClient;
+            this.keyVaultClient = keyVault;
+            this.tableIdentifier = tableIdentifier;
         }
 
         public Task<bool> IsDeviceExist(IDevice device)
@@ -32,6 +42,8 @@
 
         public async Task SaveDeviceInfo(IDeviceInfo device)
         {
+            if (!initialized) await InitializeAsync();
+
             var entity = new DeviceInfoEntity
             {
                 PartitionKey = device.ClientDeviceId,
@@ -69,6 +81,8 @@
 
         public async Task UpdateSessionInfo(ISessionInfo session)
         {
+            if (!initialized) await InitializeAsync();
+
             var entity = new SessionInfoEntity
             {
                 PartitionKey = session.ClientDeviceId,
@@ -91,6 +105,29 @@
                 ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "InsertAsync", "TableName", table.Name);
 
             if (status >= 400) throw new HttpStatusException("EntityErrorInsert:SessionInfo", status);
+        }
+
+        private async Task InitializeAsync()
+        {
+            if (initialized) return;
+
+            await semaphoreForInitialize.WaitAsync();
+
+            if (initialized) return;
+
+            try
+            {
+                tableClient = CloudStorageAccount.Parse((await keyVaultClient.GetSecretAsync(tableIdentifier)).Value).CreateCloudTableClient();
+
+                await tableClient.GetTableReference(DeviceInfoTableName).CreateIfNotExistsAsync();
+                await tableClient.GetTableReference(SessionInfoTableName).CreateIfNotExistsAsync();
+
+                initialized = true;
+            }
+            finally
+            {
+                semaphoreForInitialize.Release();
+            }
         }
     }
 }

@@ -35,7 +35,7 @@
         [Authorize()] // botidentity
         public async Task<IActionResult> AcknowledgeAcknowledgeCodeAsync([FromBody]AcknowledgeUserAuthenticationCodeRequest request)
         {
-            if (request.CodeType != UserAuthenticationCodeType.AcknowledgeCode) throw new HttpStatusException("NotMatch:AcknowledgeUserAuthenticationCodeRequest.CodeType") { Status = Common.StatusCode.BadRequest };
+            if (request.CodeType != UserAuthenticationCodeType.AcknowledgeCode) throw new HttpStatusException($"NotMatch:AcknowledgeUserAuthenticationCodeRequest.CodeType({request.CodeType})") { Status = Common.StatusCode.BadRequest };
             return Ok(await userAuthService.AcknowledgeCodeAsync(User.Identity as ISessionIdentity, request));
         }
 
@@ -43,7 +43,7 @@
         [Authorize()] // appidentity
         public async Task<IActionResult> AcknowledgeDirectLoginCodeAsync([FromBody]AcknowledgeUserAuthenticationCodeRequest request)
         {
-            if (request.CodeType != UserAuthenticationCodeType.DirectLoginCode) throw new HttpStatusException("NotMatch:AcknowledgeUserAuthenticationCodeRequest.CodeType") { Status = Common.StatusCode.BadRequest };
+            if (request.CodeType != UserAuthenticationCodeType.DirectLoginCode) throw new HttpStatusException($"NotMatch:AcknowledgeUserAuthenticationCodeRequest.CodeType({request.CodeType})") { Status = Common.StatusCode.BadRequest };
             return Ok(await userAuthService.AcknowledgeCodeAsync(User.Identity as ISessionIdentity, request));
         }
 
