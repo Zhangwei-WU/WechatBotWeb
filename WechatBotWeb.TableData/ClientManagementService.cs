@@ -71,10 +71,7 @@
 
             var table = tableClient.GetTableReference(DeviceInfoTableName);
 
-            var status = await insight.WatchAsync(
-                async () => await table.InsertAsync(entity),
-                (r, e) => e.EventStatus = r.ToString(),
-                ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "InsertAsync", "TableName", table.Name);
+            var status = await table.InsertAsync(entity);
 
             if (status >= 400) throw new HttpStatusException("EntityErrorInsert:DeviceInfo", status);
         }
@@ -99,15 +96,12 @@
 
             var table = tableClient.GetTableReference(SessionInfoTableName);
 
-            var status = await insight.WatchAsync(
-                async () => await table.InsertAsync(entity),
-                (r, e) => e.EventStatus = r.ToString(),
-                ApplicationInsightEventNames.EventCallAzureStorageTableSource, "Method", "InsertAsync", "TableName", table.Name);
+            var status = await table.InsertAsync(entity);
 
             if (status >= 400) throw new HttpStatusException("EntityErrorInsert:SessionInfo", status);
         }
 
-        private async Task InitializeAsync()
+        public async Task InitializeAsync()
         {
             if (initialized) return;
 

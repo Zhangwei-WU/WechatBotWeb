@@ -2,9 +2,9 @@
 {
     using System;
     using System.Threading.Tasks;
+    using WechatBotWeb.Common;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Http;
-    using WechatBotWeb.Common;
 
     public class ClientInfoMiddleware
     {
@@ -23,17 +23,17 @@
 
             var newSessionId = !context.Request.Cookies.TryGetValue(GlobalVariables.SessionIdName, out string sessionId) || string.IsNullOrEmpty(sessionId);
             if (newSessionId) sessionId = DateTime.UtcNow.ToBinary().ToString("X16");
-
+            
             CallContext.ClientContext = new ClientContext
             {
                 ClientDeviceId = deviceId,
                 ClientSessionId = sessionId,
-                CorrelationId = Guid.NewGuid().ToString(),
+                CorrelationId = insight.CorrelationId,
                 IP = null
             };
-
-            if (newDeviceId) insight.Event(ApplicationInsightEventNames.EventClientNewDeviceIdSource);
-            if (newSessionId) insight.Event(ApplicationInsightEventNames.EventClientNewSessionIdSource);
+            
+            if (newDeviceId) insight.Event(ApplicationInsightConstants.EventClientNewDeviceIdSource);
+            if (newSessionId) insight.Event(ApplicationInsightConstants.EventClientNewSessionIdSource);
 
             context.Response.Cookies.Append(
                 GlobalVariables.DeviceIdName,
@@ -57,14 +57,10 @@
                     IsEssential = true,
                     Path = GlobalVariables.WebApiPath,
                     SameSite = SameSiteMode.Strict,
-                    HttpOnly = true
+                    HttpOnly = false
                 });
-            
-            using (var watch = insight.Watch("RequestProcessTime"))
-            {
-                await next(context);
-                watch.EventStatus = context.Response.StatusCode.ToString();
-            }
+
+            await next(context);
         }
     }
 

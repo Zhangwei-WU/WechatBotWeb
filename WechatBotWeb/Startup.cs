@@ -35,15 +35,35 @@ namespace WechatBotWeb
             AzureServiceTokenProvider azureServiceTokenProvider = new AzureServiceTokenProvider();
             var keyVaultClient = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(azureServiceTokenProvider.KeyVaultTokenCallback));
            
-            services.AddSingleton<IAuthenticationService>((p) => new AuthenticationService(p.GetService<IApplicationInsights>(), keyVaultClient, "StorageTableConnString-0", "SignKey-0", "EncryptionKey-0"));
-
+            services.AddSingleton<IAuthenticationService>((p) =>
+            {
+                var svc = new AuthenticationService(
+                    p.GetService<IApplicationInsights>(),
+                    keyVaultClient,
+                    "https://wechatybot-test-keyvault.vault.azure.net/secrets/storagetableconnstring-1/03fd03bab8634048b6a10642aad8727c",
+                    "https://wechatybot-test-keyvault.vault.azure.net/keys/authentication-key-1/ccb5384bc2124f89822e53a5e1800bed",
+                    "https://wechatybot-test-keyvault.vault.azure.net/secrets/authentication-aes-1/94ff9cd12e1142099e8833ebf23bc1df");
+                Task.Run(async () => await svc.InitializeAsync()).Wait();
+                return svc;
+            });
+            
             services.AddSingleton<IAppAuthenticationService>((p)=>p.GetService<IAuthenticationService>() as AuthenticationService);
             services.AddSingleton<IUserAuthenticationService>((p) => p.GetService<IAuthenticationService>() as AuthenticationService);
 
-            services.AddSingleton<IClientManagementService, ClientManagementService>((p) => new ClientManagementService(p.GetService<IApplicationInsights>(), keyVaultClient, "StorageTableConnString-0"));
-            services.AddScoped<ExceptionHandlingOptions, ExceptionHandlingOptions>();
+            services.AddSingleton<IClientManagementService, ClientManagementService>((p) =>
+            {
+                var svc = new ClientManagementService(
+                    p.GetService<IApplicationInsights>(),
+                    keyVaultClient,
+                    "https://wechatybot-test-keyvault.vault.azure.net/secrets/storagetableconnstring-1/03fd03bab8634048b6a10642aad8727c");
+                Task.Run(async () => await svc.InitializeAsync()).Wait();
+                return svc;
+            });
 
+            services.AddSingleton<ExceptionHandlingOptions, ExceptionHandlingOptions>();
+            
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+
 
             // In production, the Angular files will be served from this directory
             services.AddSpaStaticFiles(configuration =>
@@ -59,24 +79,11 @@ namespace WechatBotWeb
 
             if (env.IsDevelopment())
             {
-                //app.UseDeveloperExceptionPage();
             }
             else
             {
-                //app.UseExceptionHandler("/Error");
                 app.UseHsts();
             }
-
-
-            //app.Map(GlobalVariables.WebApiPath, (ap) =>
-            //{
-            //    ap.UseMvc(routes =>
-            //    {
-            //        routes.MapRoute(
-            //            name: "default",
-            //            template: "{controller}/{action=Index}/{id?}");
-            //    });
-            //});
 
             app.UseWhen((context) => context.Request.Path.StartsWithSegments(GlobalVariables.WebApiPath), (ap) =>
               {

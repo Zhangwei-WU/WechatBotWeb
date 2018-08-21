@@ -21,15 +21,17 @@
     public class ExceptionHandlingMiddleware
     {
         private readonly RequestDelegate next;
-        private IApplicationInsights insight;
+        private readonly ExceptionHandlingOptions options;
+        private readonly IApplicationInsights insight;
 
-        public ExceptionHandlingMiddleware(RequestDelegate next, IApplicationInsights insight)
+        public ExceptionHandlingMiddleware(RequestDelegate next, ExceptionHandlingOptions options, IApplicationInsights insight)
         {
             this.next = next;
+            this.options = options;
             this.insight = insight;
         }
 
-        public async Task Invoke(HttpContext context, ExceptionHandlingOptions options)
+        public async Task Invoke(HttpContext context)
         {
             try
             {
@@ -37,18 +39,9 @@
             }
             catch (Exception e)
             {
-                var shouldLogException = true;
-                var ex = e;
-                while (ex is ApplicationInsightsAlreadyInspectedException)
-                {
-                    shouldLogException = false;
-                    ex = e.InnerException;
-                }
-
-                if (shouldLogException)
-                {
-                    insight.Exception(ex, "ExceptionHandler");
-                }
+                Exception ex = e as ApplicationInsightsAlreadyInspectedException;
+                if (ex != null) ex = e.InnerException;
+                else insight.Exception(e, "ExceptionHandlingMiddleware");
 
                 if (context.Response.HasStarted)
                 {
@@ -58,23 +51,10 @@
                 var errorResponse = new ErrorResponse
                 {
                     CorrelationId = CallContext.ClientContext.CorrelationId,
+                    Message = options.HideErrorMessage ? "$(GeneralErrorMessage)" : e.Message,
+                    Status = (int)((e as HttpStatusException)?.Status ?? StatusCode.InternalServerError)
                 };
-
-                var httpStatusException = ex as HttpStatusException;
-
-                if (httpStatusException != null)
-                {
-                    errorResponse.Status = (int)httpStatusException.Status;
-                    errorResponse.Message = httpStatusException.Message;
-                }
-                else
-                {
-                    errorResponse.Status = 500;
-                    errorResponse.Message = ex.Message;
-                }
-
-                if (!options.HideErrorMessage) errorResponse.Message = "$(GeneralErrorMessage)";
-
+                
                 context.Response.StatusCode = errorResponse.Status;
                 context.Response.ContentType = "application/json";
                 await context.Response.WriteAsync(Newtonsoft.Json.JsonConvert.SerializeObject(errorResponse));
