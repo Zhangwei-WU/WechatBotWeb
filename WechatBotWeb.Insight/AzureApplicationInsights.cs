@@ -7,20 +7,20 @@
     using Microsoft.ApplicationInsights;
     using WechatBotWeb.Common;
 
-    public class AzureApplicationInsightTraceEvent : IApplicationInsightEvent
+    public class AzureApplicationInsightEvent : IApplicationInsightEvent
     {
         private AzureApplicationInsights insight;
         private Stopwatch watch;
         private bool disposed = false;
 
-        internal AzureApplicationInsightTraceEvent(string source, AzureApplicationInsights insight, bool startWatch)
+        internal AzureApplicationInsightEvent(string source, AzureApplicationInsights insight, bool startWatch)
         {
             this.EventSource = source;
             this.insight = insight;
             Init(startWatch);
         }
 
-        public AzureApplicationInsightTraceEvent(string source)
+        public AzureApplicationInsightEvent(string source)
         {
             this.EventSource = source;
             Init(false);
@@ -205,7 +205,7 @@
 
         public IApplicationInsightEvent Watch(string source, params string[] properties)
         {
-            var e = new AzureApplicationInsightTraceEvent(source, this, true);
+            var e = new AzureApplicationInsightEvent(source, this, true);
             if (properties != null && properties.Length != 0) for (var i = 0; i < properties.Length / 2; i++) e.Properties.Add(properties[i * 2], properties[i * 2 + 1]);
             return e;
         }

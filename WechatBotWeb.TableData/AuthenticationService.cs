@@ -6,6 +6,7 @@
     using System.Threading.Tasks;
     using Microsoft.Azure.KeyVault;
     using Microsoft.Azure.KeyVault.WebKey;
+    using Microsoft.WindowsAzure.Storage;
     using Microsoft.WindowsAzure.Storage.Table;
     using WechatBotWeb.Common;
     using WechatBotWeb.IData;
@@ -20,33 +21,34 @@
 
         private static SemaphoreSlim semaphoreForInitialize = new SemaphoreSlim(1, 1);
 
+        private IApplicationInsights insight;
         private CloudTableClient tableClient;
         private KeyVaultClient keyVaultClient;
+        private string tableIdentifier;
         private string signKeyIdentifier;
         private string encryptionKeyIdentifier;
+        private bool initialized = false;
 
         private JsonWebKey jwk;
         private byte[] encryptionKey;
         private Random rnd;
 
-        IApplicationInsights insight;
 
-        public AuthenticationService(IApplicationInsights insight, CloudTableClient table, KeyVaultClient keyVault, string signKeyIdentifier, string encryptionKeyIdentifier)
+        public AuthenticationService(IApplicationInsights insight, KeyVaultClient keyVault, string tableIdentifier, string signKeyIdentifier, string encryptionKeyIdentifier)
         {
             this.insight = insight ?? throw new ArgumentNullException("insight");
-            tableClient = table ?? throw new ArgumentNullException("table");
-            keyVaultClient = keyVault ?? throw new ArgumentNullException("keyVault");
+            this.keyVaultClient = keyVault ?? throw new ArgumentNullException("keyVault");
 
+            this.tableIdentifier = tableIdentifier;
             this.signKeyIdentifier = signKeyIdentifier;
             this.encryptionKeyIdentifier = encryptionKeyIdentifier;
-            
-            rnd = new Random();
         }
 
         public async Task<IAppAuthenticationToken> CreateAppTokenAsync(ISession session)
         {
             if (session == null || string.IsNullOrEmpty(session.ClientDeviceId) || string.IsNullOrEmpty(session.ClientSessionId)) throw new HttpStatusException("BadRequest:Session") { Status = StatusCode.BadRequest };
 
+            if (!initialized) await InitializeAsync();
             // check banned session
 
             var accssToken = await CreateAccessToken(new AppIdentity
@@ -69,6 +71,8 @@
         public async Task<IUserAuthenticationCode> CreateCodeAsync(ISessionIdentity identity, ICreateUserAuthenticationCodeRequest request)
         {
             if (identity == null || !identity.IsAuthenticated) throw new HttpStatusException("Unauthorized:Identity") { Status = StatusCode.Unauthorized };
+
+            if (!initialized) await InitializeAsync();
 
             if (request.CodeType == UserAuthenticationCodeType.AcknowledgeCode)
             {
@@ -226,6 +230,8 @@
         {
             if (identity == null || !identity.IsAuthenticated) throw new HttpStatusException("Unauthorized:Identity") { Status = StatusCode.Unauthorized };
 
+            if (!initialized) await InitializeAsync();
+
             if (request.CodeType == UserAuthenticationCodeType.AcknowledgeCode)
             {
                 return await AcknowledgeAcknowledgeCodeAsync(identity, request);
@@ -347,6 +353,8 @@
             if (identity == null || !identity.IsAuthenticated) throw new HttpStatusException("Unauthorized:Identity") { Status = StatusCode.Unauthorized };
             if (identity.IdentityType != IdentityType.App) throw new HttpStatusException($"NotApp:Identity({identity.IdentityType})") { Status = StatusCode.BadRequest };
 
+            if (!initialized) await InitializeAsync();
+
             if (request.CodeType == UserAuthenticationCodeType.AcknowledgeCode)
             {
                 return await TryGetTokenByAcknowledgeCodeAsync(identity, request);
@@ -451,6 +459,8 @@
             if (identity == null || !identity.IsAuthenticated) throw new HttpStatusException("Unauthorized:Identity") { Status = StatusCode.Unauthorized };
             if (identity.IdentityType != IdentityType.App) throw new HttpStatusException($"NotApp:Identity({identity.IdentityType})") { Status = StatusCode.Unauthorized };
 
+            if (!initialized) await InitializeAsync();
+
             var token = request.RefreshToken;
             if (string.IsNullOrEmpty(token) || token.Length != 32) throw new HttpStatusException($"BadRequest:RefreshUserAuthenticationTokenRequest.RefreshToken({token})") { Status = StatusCode.BadRequest };
 
@@ -488,6 +498,8 @@
         public async Task<ISessionIdentity> ValidateTokenAsync(ISession session, string scheme, string token)
         {
             if (string.IsNullOrEmpty(token)) return null;
+
+            if (!initialized) await InitializeAsync();
 
             switch (scheme)
             {
@@ -633,20 +645,6 @@
 
         private async Task<string> CreateAccessToken(ISessionIdentity identity)
         {
-            if (encryptionKey == null)
-            {
-                await semaphoreForInitialize.WaitAsync();
-
-                try
-                {
-                    if (encryptionKey == null) await InitializeSecrets();
-                }
-                finally
-                {
-                    semaphoreForInitialize.Release();
-                }
-            }
-
             var tokenBytes = Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(identity));
 
             var encryptedToken = Aes.Encrypt(tokenBytes, encryptionKey);
@@ -662,10 +660,31 @@
                 + "." + Convert.ToBase64String(tokenSignature);
         }
 
-        private async Task InitializeSecrets()
+        private async Task InitializeAsync()
         {
-            jwk = (await keyVaultClient.GetKeyAsync(signKeyIdentifier)).Key;
-            encryptionKey = Convert.FromBase64String((await keyVaultClient.GetSecretAsync(encryptionKeyIdentifier)).Value);
+            if (initialized) return;
+
+            await semaphoreForInitialize.WaitAsync();
+
+            if (initialized) return;
+
+            try
+            {
+                jwk = (await keyVaultClient.GetKeyAsync(signKeyIdentifier)).Key;
+                encryptionKey = Convert.FromBase64String((await keyVaultClient.GetSecretAsync(encryptionKeyIdentifier)).Value);
+                rnd = new Random();
+                tableClient = CloudStorageAccount.Parse((await keyVaultClient.GetSecretAsync(tableIdentifier)).Value).CreateCloudTableClient();
+
+                await tableClient.GetTableReference(AcknowledgeCodeTableName).CreateIfNotExistsAsync();
+                await tableClient.GetTableReference(DirectLoginCodeTableName).CreateIfNotExistsAsync();
+                await tableClient.GetTableReference(RefreshTokenTableName).CreateIfNotExistsAsync();
+
+                initialized = true;
+            }
+            finally
+            {
+                semaphoreForInitialize.Release();
+            }
         }
     }
 }

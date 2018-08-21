@@ -1,10 +1,10 @@
 ﻿namespace WechatBotWeb.Middlewares
 {
-    using Microsoft.AspNetCore.Builder;
-    using Microsoft.AspNetCore.Http;
     using System.Linq;
     using System.Security.Claims;
     using System.Threading.Tasks;
+    using Microsoft.AspNetCore.Builder;
+    using Microsoft.AspNetCore.Http;
     using WechatBotWeb.Common;
     using WechatBotWeb.IData;
 
@@ -15,10 +15,11 @@
         private IAuthenticationService authService;
         private IApplicationInsights insight;
 
-        public JwtAuthenticationMiddleware(RequestDelegate next, IAuthenticationService service, IApplicationInsights insights)
+        public JwtAuthenticationMiddleware(RequestDelegate next, IAuthenticationService service, IApplicationInsights insight)
         {
             this.next = next;
             this.authService = service;
+            this.insight = insight;
         }
 
         public async Task Invoke(HttpContext context)
@@ -29,7 +30,7 @@
                 var schemeIndex = authorization.IndexOf(' ');
                 if (schemeIndex == -1)
                 {
-                    insight.Error("JwtAuthenticationMiddleware", "BadFormat Authorization: {0}", authorization);
+                    insight.Error("JwtAuthenticationMiddleware", "Invalid({0})", authorization);
                 }
                 else
                 {
@@ -43,7 +44,7 @@
 
                     if (identity == null || !identity.IsAuthenticated)
                     {
-                        insight.Error("JwtAuthenticationMiddleware", "Error Authorization: {0}", authorization);
+                        insight.Error("JwtAuthenticationMiddleware", "Unauthorized({0})", authorization);
                     }
                     else
                     {

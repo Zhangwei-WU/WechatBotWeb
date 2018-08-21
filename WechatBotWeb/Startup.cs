@@ -8,7 +8,15 @@ namespace WechatBotWeb
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using WechatBotWeb.Common;
+    using WechatBotWeb.Insight;
     using WechatBotWeb.Middlewares;
+    using WechatBotWeb.IData;
+    using WechatBotWeb.TableData;
+    using Microsoft.WindowsAzure.Storage.Table;
+    using Microsoft.WindowsAzure.Storage;
+    using Microsoft.Azure.KeyVault;
+    using Microsoft.Azure.Services.AppAuthentication;
+    using System.Threading.Tasks;
 
     public class Startup
     {
@@ -22,6 +30,19 @@ namespace WechatBotWeb
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddSingleton<IApplicationInsights, AzureApplicationInsights>();
+
+            AzureServiceTokenProvider azureServiceTokenProvider = new AzureServiceTokenProvider();
+            var keyVaultClient = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(azureServiceTokenProvider.KeyVaultTokenCallback));
+           
+            services.AddSingleton<IAuthenticationService>((p) => new AuthenticationService(p.GetService<IApplicationInsights>(), keyVaultClient, "StorageTableConnString-0", "SignKey-0", "EncryptionKey-0"));
+
+            services.AddSingleton<IAppAuthenticationService>((p)=>p.GetService<IAuthenticationService>() as AuthenticationService);
+            services.AddSingleton<IUserAuthenticationService>((p) => p.GetService<IAuthenticationService>() as AuthenticationService);
+
+            services.AddSingleton<IClientManagementService, ClientManagementService>((p) => new ClientManagementService(p.GetService<IApplicationInsights>(), keyVaultClient, "StorageTableConnString-0"));
+            services.AddScoped<ExceptionHandlingOptions, ExceptionHandlingOptions>();
+
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
             // In production, the Angular files will be served from this directory
@@ -34,18 +55,7 @@ namespace WechatBotWeb
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
-            //AppId:80ecf1c1-a837-48da-a2c7-dfa1c500b019
-            //Key: MlO7a13ea0DGeEXOObBrojChwVqptDir8NwH4dTRMvE =
-
             GlobalVariables.IsProduction = env.IsProduction();
-
-            app.Map(GlobalVariables.WebApiPath, (ap) =>
-            {
-                ap
-                .UseClientInfoMiddleware()
-                .UseExceptionHandlerMiddleware()
-                .UseJwtAuthenticationMiddleware();
-            });
 
             if (env.IsDevelopment())
             {
@@ -57,10 +67,28 @@ namespace WechatBotWeb
                 app.UseHsts();
             }
 
+
+            //app.Map(GlobalVariables.WebApiPath, (ap) =>
+            //{
+            //    ap.UseMvc(routes =>
+            //    {
+            //        routes.MapRoute(
+            //            name: "default",
+            //            template: "{controller}/{action=Index}/{id?}");
+            //    });
+            //});
+
+            app.UseWhen((context) => context.Request.Path.StartsWithSegments(GlobalVariables.WebApiPath), (ap) =>
+              {
+                  ap.UseClientInfoMiddleware();
+                  ap.UseExceptionHandlerMiddleware();
+                  ap.UseJwtAuthenticationMiddleware();
+              });
+            
             app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseSpaStaticFiles();
-
+            
             app.UseMvc(routes =>
             {
                 routes.MapRoute(
