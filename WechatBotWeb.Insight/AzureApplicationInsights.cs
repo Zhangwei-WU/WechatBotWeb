@@ -86,17 +86,7 @@
         {
             telemetry.Context.Properties.Add(name, value);
         }
-
-        public string CorrelationId
-        {
-            get
-            {
-                var trace = new TraceTelemetry("Trace to retrieve Operation Id", SeverityLevel.Verbose);
-                telemetry.TrackTrace(trace);
-                return trace.Context.Operation.Id;
-            }
-        }
-
+        
         public LogLevel MinLogLevel { get; set; }
 
         #region log
