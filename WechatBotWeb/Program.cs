@@ -19,14 +19,9 @@ namespace WechatBotWeb
             CreateWebHostBuilder(args).Build().Run();
         }
 
-        public static IWebHostBuilder CreateWebHostBuilder(string[] args)
-        {
-            TelemetryConfiguration.Active.TelemetryProcessorChainBuilder.Use((p) => new AzureApplyPropertiesTelemetryProcessor(p));
-
-            return WebHost.CreateDefaultBuilder(args)
+        public static IWebHostBuilder CreateWebHostBuilder(string[] args) => 
+            WebHost.CreateDefaultBuilder(args)
                 .UseApplicationInsights()
                 .UseStartup<Startup>();
-
-        }
     }
 }

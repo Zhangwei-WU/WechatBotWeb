@@ -27,7 +27,6 @@
     public interface IApplicationInsights
     {
         void AddContext(string name, string value);
-        string CorrelationId { get; }
         //#region perf counters
         ///// <summary>
         ///// watch task code snippet with a return value
