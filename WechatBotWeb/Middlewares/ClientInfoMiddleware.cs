@@ -31,12 +31,10 @@
             {
                 ClientDeviceId = deviceId,
                 ClientSessionId = sessionId,
-                CorrelationId = telemetry?.Context.Operation.Id ?? Guid.NewGuid().ToString("N").ToLowerInvariant(),
-                IP = null
+                CorrelationId = telemetry?.Context.Operation.Id ?? Guid.NewGuid().ToString("N").ToLowerInvariant() + "|" + sessionId
             };
 
             telemetry.Context.Session.Id = sessionId;
-            telemetry.Context.Session.IsFirst = newSessionId;
             telemetry.Context.Properties["Device Id"] = deviceId;
 
             if (newDeviceId) insight.Event(ApplicationInsightConstants.EventClientNewDeviceIdSource);
@@ -47,7 +45,7 @@
                 deviceId,
                 new CookieOptions
                 {
-                    Domain = context.Request.Host.Host,
+                    //Domain = context.Request.Host.Host,
                     IsEssential = true,
                     Path = "/",
                     SameSite = SameSiteMode.Strict,
@@ -60,7 +58,7 @@
                 sessionId,
                 new CookieOptions
                 {
-                    Domain = context.Request.Host.Host,
+                    //Domain = context.Request.Host.Host,
                     IsEssential = true,
                     Path = "/",
                     SameSite = SameSiteMode.Strict,

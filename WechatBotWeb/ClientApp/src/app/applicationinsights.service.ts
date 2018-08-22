@@ -3,6 +3,7 @@ import { ActivatedRoute, ActivatedRouteSnapshot, ResolveEnd, Router } from '@ang
 import { AppInsights } from 'applicationinsights-js';
 import { Subscription } from 'rxjs';
 import { environment } from '../environments/environment';
+import { CookieService } from './cookie.service';
 
 @Injectable({
   providedIn: 'root',
@@ -11,12 +12,13 @@ export class ApplicationinsightsService {
   private config: Microsoft.ApplicationInsights.IConfig = {
     instrumentationKey: environment.appInsights.instrumentationKey,
     isCookieUseDisabled: true,
+    disableCorrelationHeaders: false,
     overridePageViewDuration: true
   };
 
   private routerSubscription: Subscription;
 
-  constructor(private router: Router, private activatedRoute: ActivatedRoute) {
+  constructor(private router: Router, private activatedRoute: ActivatedRoute, private cookie : CookieService) {
     if (!AppInsights.config) {
       AppInsights.downloadAndSetup(this.config);
     }
@@ -30,7 +32,12 @@ export class ApplicationinsightsService {
           }
         }
       });
-    
+
+    AppInsights.queue.push(function () {
+      AppInsights.context.addTelemetryInitializer(function (envelope) {
+        envelope.tags['ai.session.id'] = cookie.get('WB-Session-Id');
+      });
+    });
   }
 
   public logPageView(name: string, url?: string, properties?: { [key: string]: string }, measurements?: { [key: string]: number }, duration?: number) {
@@ -47,6 +54,10 @@ export class ApplicationinsightsService {
 
   public setAuthenticatedUserId(userId: string, accountId: string): void {
     AppInsights.setAuthenticatedUserContext(userId, accountId, false);
+  }
+
+  public clearAuthenticatedUserId(): void {
+    AppInsights.clearAuthenticatedUserContext();
   }
   
   private addGlobalProperties(properties?: { [key: string]: string }): { [key: string]: string } {
