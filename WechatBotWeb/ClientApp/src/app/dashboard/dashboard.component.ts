@@ -14,7 +14,7 @@ export class DashboardComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.auth.getAppToken().subscribe(t => this.appToken = t.accessToken);
+    this.auth.getAppToken().subscribe(t => this.appToken = t);
   }
 
 }
