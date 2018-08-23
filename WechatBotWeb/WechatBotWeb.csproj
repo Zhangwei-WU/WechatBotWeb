@@ -28,10 +28,18 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="ClientApp\src\app\types\auth.ts" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\WechatBotWeb.Common\WechatBotWeb.Common.csproj" />
     <ProjectReference Include="..\WechatBotWeb.IData\WechatBotWeb.IData.csproj" />
     <ProjectReference Include="..\WechatBotWeb.Insight\WechatBotWeb.Insight.csproj" />
     <ProjectReference Include="..\WechatBotWeb.TableData\WechatBotWeb.TableData.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <TypeScriptCompile Include="ClientApp\src\app\types\auth.ts" />
   </ItemGroup>
 
   <ItemGroup>
