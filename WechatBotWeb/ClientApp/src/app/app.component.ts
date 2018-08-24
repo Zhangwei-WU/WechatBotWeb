@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
-import { ApplicationinsightsService } from './applicationinsights.service';
+import { ApplicationinsightsService } from './services/applicationinsights.service';
+import { ClientinfoService } from './services/clientinfo.service';
 
 @Component({
   selector: 'app-root',
@@ -9,6 +10,6 @@ import { ApplicationinsightsService } from './applicationinsights.service';
 export class AppComponent {
   title = 'app';
 
-  constructor(private ai : ApplicationinsightsService) {
+  constructor(private ai : ApplicationinsightsService, private client : ClientinfoService) {
   } 
 }

@@ -2,13 +2,14 @@ import { Injectable } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot, ResolveEnd, Router } from '@angular/router';
 import { AppInsights } from 'applicationinsights-js';
 import { Subscription } from 'rxjs';
-import { environment } from '../environments/environment';
+import { environment } from '../../environments/environment';
 import { CookieService } from './cookie.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class ApplicationinsightsService {
+
   private config: Microsoft.ApplicationInsights.IConfig = {
     instrumentationKey: environment.appInsights.instrumentationKey,
     isCookieUseDisabled: true,

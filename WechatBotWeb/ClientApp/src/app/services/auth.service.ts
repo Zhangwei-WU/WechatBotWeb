@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { AppToken, UserToken } from './types/auth';
+import { AppToken, UserToken } from '../types/auth';
 import { Observable, of } from 'rxjs';
 import { publishReplay, map, tap, refCount } from 'rxjs/operators';
 import { ApplicationinsightsService } from './applicationinsights.service';
@@ -11,18 +11,19 @@ import { ApplicationinsightsService } from './applicationinsights.service';
 
 export class AuthService {
 
-  private appToken: Observable<string>;
+  private _appToken: Observable<string>;
+
   constructor(private http: HttpClient, private ai: ApplicationinsightsService) { }
 
-  public getAppToken(): Observable<string> {
-    if (!this.appToken) {
-      this.appToken = this.http.get<AppToken>('/api/appauth').pipe(
+  public get appToken(): Observable<string> {
+    if (!this._appToken) {
+      this._appToken = this.http.get<AppToken>('/api/appauth').pipe(
         map(t => t.accessToken),
         publishReplay(1),
         refCount()
       );
     }
 
-    return this.appToken;
+    return this._appToken;
   }
 }
